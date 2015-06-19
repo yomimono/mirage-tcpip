@@ -13,6 +13,10 @@ Flag xen
   Description:        Build Xen support
   Default:            false
 
+Flag coverage
+  Description:        Use bisect_ppx to generate coverage data
+  Default:            false
+
 Library tcpip
   CompiledObject:     best
   Path:               lib
@@ -327,7 +331,7 @@ Executable test
   Custom: true
   MainIs: test.ml
   ByteOpt: -g
-  BuildDepends: alcotest, oUnit, lwt, lwt.unix, io-page.unix, tcpip.channel,
+  BuildDepends: bisect_ppx, alcotest, oUnit, lwt, lwt.unix, io-page.unix, tcpip.channel,
                 mirage-flow, mirage-vnetif, mirage-clock-unix, mirage-console.unix, tcpip.ethif, tcpip.tcp, pcap-format
 
 Test test

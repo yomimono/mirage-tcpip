@@ -674,9 +674,37 @@ let dispatch_default = MyOCamlbuildBase.dispatch_default conf package_default;;
 
 # 676 "myocamlbuild.ml"
 (* OASIS_STOP *)
-Ocamlbuild_plugin.dispatch dispatch_default;;
-(* Ocamlbuild_pack.Flags.mark_tag_used "tests";; *)
+
+let has_coverage () =
+    let key = "coverage=" in
+      let n   = String.length key in
+      try
+    let ic = open_in "setup.data" in
+            let rec l () =
+      let s = input_line ic in
+      if String.sub s 0 n = key then
+        let sub = String.sub s (n + 1) (String.length s - n - 2) in
+        bool_of_string sub
+        else
+          l ()
+      in
+    l ()
+        with _ -> false
+
 let () =
   flag ["ocaml"; "doc"] (A"-colorize-code");
   flag ["ocaml"; "doc"] (A"-short-functors");
-  flag ["ocaml"; "doc"] (A"-short-paths")
+  flag ["ocaml"; "doc"] (A"-short-paths");
+    let additional_rules = function
+          | After_rules     ->
+                  if has_coverage () then
+        tag_any ["pkg_bisect_ppx"]
+                          else
+        ()
+    | _ -> ()
+  in
+  dispatch
+      (MyOCamlbuildBase.dispatch_combine
+        [dispatch_default; additional_rules])
+(* Ocamlbuild_pack.Flags.mark_tag_used "tests";; *)
+
