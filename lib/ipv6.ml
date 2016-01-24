@@ -927,6 +927,10 @@ module Make (E : V1_LWT.ETHIF) (T : V1_LWT.TIME) (C : V1.CLOCK) = struct
     let src = AddressList.select_source t.state.address_list dst in
     Allocate.frame ~mac:t.state.mac ~src ~hlim:t.state.cur_hop_limit ~dst ~proto
 
+  let allocate t ~src ~dst ~proto =
+    let proto = Ipv6_wire.protocol_to_int proto in
+    Allocate.frame ~mac:t.state.mac ~src ~hlim:t.state.cur_hop_limit ~dst ~proto
+
   let writev t frame bufs =
     let now = C.time () in
     let dst = Ipaddr.of_cstruct (Ipv6_wire.get_ipv6_dst (Cstruct.shift frame Wire_structs.sizeof_ethernet)) in

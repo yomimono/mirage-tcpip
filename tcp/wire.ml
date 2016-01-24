@@ -32,7 +32,12 @@ let set_options buf ts =
 let get_payload buf =
   Cstruct.shift buf (Tcp_wire.get_data_offset buf)
 
-module Make (Ip:V1_LWT.IP) = struct
+module type IP = sig
+  include V1_LWT.IP
+  val allocate: t -> src:ipaddr -> dst:ipaddr -> proto:[`ICMP | `TCP | `UDP] -> buffer * int
+end
+
+module Make (Ip: IP) = struct
   type id = {
     dest_port: int;               (* Remote TCP port *)
     dest_ip: Ip.ipaddr;         (* Remote IP address *)
@@ -43,7 +48,7 @@ module Make (Ip:V1_LWT.IP) = struct
   let xmit ~ip ~id ?(rst=false) ?(syn=false) ?(fin=false) ?(psh=false)
       ~rx_ack ~seq ~window ~options datav =
     (* Make a TCP/IP header frame *)
-    let frame, header_len = Ip.allocate_frame ip ~dst:id.dest_ip ~proto:`TCP in
+    let frame, header_len = Ip.allocate ip ~src:id.local_ip ~dst:id.dest_ip ~proto:`TCP in
     (* Shift this out by the combined ethernet + IP header sizes *)
     let tcp_frame = Cstruct.shift frame header_len in
     (* Append the TCP options to the header *)

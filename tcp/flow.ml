@@ -22,7 +22,7 @@ exception Refused
 
 let debug = Log.create "Flow"
 
-module Make(IP:V1_LWT.IP)(TM:V1_LWT.TIME)(C:V1.CLOCK)(R:V1.RANDOM) = struct
+module Make(IP:Wire.IP)(TM:V1_LWT.TIME)(C:V1.CLOCK)(R:V1.RANDOM) = struct
 
   module Pcb = Pcb.Make(IP)(TM)(C)(R)
 

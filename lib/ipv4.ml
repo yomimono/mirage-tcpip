@@ -102,7 +102,7 @@ module Make(Ethif: V1_LWT.ETHIF) (Arpv4 : V1_LWT.ARP) = struct
     let checksum = Tcpip_checksum.ones_complement buf in
     Wire_structs.Ipv4_wire.set_ipv4_csum buf checksum
 
-  let allocate_frame t ~dst ~proto =
+  let allocate t ~src ~dst ~proto =
     let ethernet_frame = Io_page.to_cstruct (Io_page.get 1) in
     let smac = Macaddr.to_bytes (Ethif.mac t.ethif) in
     Wire_structs.set_ethernet_src smac 0 ethernet_frame;
@@ -115,10 +115,12 @@ module Make(Ethif: V1_LWT.ETHIF) (Arpv4 : V1_LWT.ARP) = struct
     Wire_structs.Ipv4_wire.set_ipv4_ttl buf 38; (* TODO *)
     let proto = Wire_structs.Ipv4_wire.protocol_to_int proto in
     Wire_structs.Ipv4_wire.set_ipv4_proto buf proto;
-    Wire_structs.Ipv4_wire.set_ipv4_src buf (Ipaddr.V4.to_int32 t.ip);
+    Wire_structs.Ipv4_wire.set_ipv4_src buf (Ipaddr.V4.to_int32 src);
     Wire_structs.Ipv4_wire.set_ipv4_dst buf (Ipaddr.V4.to_int32 dst);
     let len = Wire_structs.sizeof_ethernet + Wire_structs.Ipv4_wire.sizeof_ipv4 in
     (ethernet_frame, len)
+
+  let allocate_frame t ~dst ~proto = allocate t ~src:t.ip ~dst ~proto
 
   let writev t frame bufs =
     let v4_frame = Cstruct.shift frame Wire_structs.sizeof_ethernet in
@@ -155,7 +157,7 @@ module Make(Ethif: V1_LWT.ETHIF) (Arpv4 : V1_LWT.ARP) = struct
     printf "ICMP Destination Unreachable: %s\n%!" descr;
     Lwt.return_unit
 
-  let icmp_input t src _hdr buf =
+  let icmp_input t src dst _hdr buf =
     MProf.Trace.label "icmp_input";
     match Wire_structs.Ipv4_wire.get_icmpv4_ty buf with
     |0 -> (* echo reply *)
@@ -171,7 +173,7 @@ module Make(Ethif: V1_LWT.ETHIF) (Arpv4 : V1_LWT.ARP) = struct
       Wire_structs.Ipv4_wire.set_icmpv4_ty buf 0;
       Wire_structs.Ipv4_wire.set_icmpv4_csum buf csum;
       (* stick an IPv4 header on the front and transmit *)
-      let frame, header_len = allocate_frame t ~dst:src ~proto:`ICMP in
+      let frame, header_len = allocate t ~src:dst ~dst:src ~proto:`ICMP in
       let frame = Cstruct.set_len frame header_len in
       write t frame buf
     |ty ->
@@ -190,7 +192,7 @@ module Make(Ethif: V1_LWT.ETHIF) (Arpv4 : V1_LWT.ARP) = struct
       let data = Cstruct.sub data 0 payload_len in
       let proto = Wire_structs.Ipv4_wire.get_ipv4_proto buf in
       match Wire_structs.Ipv4_wire.int_to_protocol proto with
-      | Some `ICMP -> icmp_input t src hdr data
+      | Some `ICMP -> icmp_input t src dst hdr data
       | Some `TCP  -> tcp ~src ~dst data
       | Some `UDP  -> udp ~src ~dst data
       | None       -> default ~proto ~src ~dst data
