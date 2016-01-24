@@ -101,7 +101,7 @@ module Make(Ethif: V1_LWT.ETHIF) (Arpv4 : V1_LWT.ARP) = struct
     let checksum = Tcpip_checksum.ones_complement buf in
     set_ipv4_csum buf checksum
 
-  let allocate_frame t ~(dst:ipaddr) ~(proto : [`ICMP | `TCP | `UDP]) : (buffer * int) =
+  let allocate t ~(src:ipaddr) ~(dst:ipaddr) ~(proto : [`ICMP | `TCP | `UDP]) : (buffer * int) =
     let open Ipv4_wire in
     let ethernet_frame = Io_page.to_cstruct (Io_page.get 1) in
     let len = Ethif_wire.sizeof_ethernet + sizeof_ipv4 in
@@ -127,6 +127,8 @@ module Make(Ethif: V1_LWT.ETHIF) (Arpv4 : V1_LWT.ARP) = struct
         raise (Invalid_argument "writing ipv4 header to ipv4.allocate_frame failed")
       | Ok () ->
         (ethernet_frame, len)
+
+  let allocate_frame t ~dst ~proto = allocate t ~src:t.ip ~dst ~proto
 
   let writev t frame bufs =
     let v4_frame = Cstruct.shift frame Ethif_wire.sizeof_ethernet in
