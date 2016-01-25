@@ -40,6 +40,12 @@ struct
     urx: User_buffer.Rx.t;    (* App rx buffer *)
     utx: UTX.t;               (* App tx buffer *)
   }
+  type action = [
+    | `Reject
+    | `Accept of (pcb -> unit Lwt.t)
+  ]
+
+  type on_flow_arrival_callback = src:(Ip.ipaddr * int) -> dst:(Ip.ipaddr * int) -> action Lwt.t
 
   type connection = pcb * unit Lwt.t
 
@@ -411,10 +417,11 @@ struct
          - send RST *)
       Tx.send_rst t id ~sequence ~ack_number ~syn ~fin
 
-  let process_syn t id ~listeners ~tx_wnd ~ack_number ~sequence ~options ~syn ~fin =
-    Logs.(log_with_stats Debug "process-syn" t);
-    match listeners @@ WIRE.src_port_of_id id with
-    | Some pushf ->
+  let process_syn t id ~on_flow_arrival ~tx_wnd ~ack_number ~sequence ~options ~syn ~fin =
+    Log.f debug (with_stats "process-syn" t);
+    on_flow_arrival ~src:(id.WIRE.local_ip, id.WIRE.local_port) ~dst:(id.WIRE.dest_ip, id.WIRE.dest_port)
+    >>= function
+    | `Accept pushf ->
       let tx_isn = Sequence.of_int ((Random.int 65535) + 0x1AFE0000) in
       (* TODO: make this configurable per listener *)
       let rx_wnd = 65535 in
@@ -424,7 +431,7 @@ struct
         id pushf
       >>= fun _ ->
       Lwt.return_unit
-    | None ->
+    | `Reject ->
       Tx.send_rst t id ~sequence ~ack_number ~syn ~fin
 
   let process_ack t id ~pkt =
@@ -455,13 +462,13 @@ struct
         (* ACK but no matching pcb and no listen - send RST *)
         Tx.send_rst t id ~sequence ~ack_number ~syn ~fin
 
-  let input_no_pcb t listeners (parsed, payload) id =
+  let input_no_pcb t on_flow_arrival (parsed, payload) id =
     let { sequence; Tcp_packet.ack_number; window; options; syn; fin; rst; ack; _ } = parsed in
     match rst, syn, ack with
     | true, _, _ -> process_reset t id ~ack ~ack_number
     | false, true, true ->
       process_synack t id ~ack_number ~sequence ~tx_wnd:window ~options ~syn ~fin
-    | false, true , false -> process_syn t id ~listeners ~tx_wnd:window
+    | false, true , false -> process_syn t id ~on_flow_arrival ~tx_wnd:window
 			       ~ack_number ~sequence ~options ~syn ~fin
     | false, false, true  ->
       let open RXS in
@@ -471,7 +478,8 @@ struct
       Lwt.return_unit
 
   (* Main input function for TCP packets *)
-  let input t ~listeners ~src ~dst data =
+  let input t ~on_flow_arrival ~src ~dst data =
+    let (_: on_flow_arrival_callback) = on_flow_arrival in
     let open Tcp_packet in
     match Unmarshal.of_cstruct data with
     | Result.Error s -> Log.debug (fun f -> f "parsing TCP header failed: %s" s);
@@ -483,7 +491,7 @@ struct
         (* PCB exists, so continue the connection state machine in tcp_input *)
         (Rx.input t RXS.({header = pkt; payload}))
         (* No existing PCB, so check if it is a SYN for a listening function *)
-        (input_no_pcb t listeners (pkt, payload))
+        (input_no_pcb t on_flow_arrival (pkt, payload))
 
   (* Blocking read on a PCB *)
   let read pcb =

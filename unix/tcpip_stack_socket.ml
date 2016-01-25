@@ -102,33 +102,9 @@ let listen_udpv4 t ~port callback =
     (* FIXME: we should not ignore the result *)
     ignore_result (loop ())
 
-let listen_tcpv4 _t ~port callback =
-  if port < 0 || port > 65535 then
-    raise (Invalid_argument (err_invalid_port port))
-  else
-    let fd = Lwt_unix.(socket PF_INET SOCK_STREAM 0) in
-    Lwt_unix.setsockopt fd Lwt_unix.SO_REUSEADDR true;
-    (* TODO: as elsewhere in the module, we bind all available addresses; it would be better not to do so if the user has requested it *)
-    let interface = Ipaddr_unix.V4.to_inet_addr Ipaddr.V4.any in
-    Lwt_unix.bind fd (Lwt_unix.ADDR_INET (interface, port));
-    Lwt_unix.listen fd 10;
-    let rec loop () =
-      let continue () =
-        (* TODO cancellation *)
-        if true then loop () else return_unit in
-      Lwt_unix.accept fd
-      >>= fun (afd, _) ->
-      Lwt.async (fun () ->
-                 Lwt.catch
-                   (fun () -> callback afd)
-                   (fun _ -> return_unit)
-                );
-      return_unit
-      >>= fun () ->
-      continue ();
-    in
-    (* FIXME: we should not ignore the result *)
-    ignore_result (loop ())
+let listen_tcpv4 _t ~on_flow_arrival callback =
+  failwith "there is no socket api for on_flow_arrival"
+
 
 let listen _t =
   let t, _ = Lwt.task () in
