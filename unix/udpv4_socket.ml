@@ -75,3 +75,6 @@ let write ?src_port ~dst ~dst_port t buf =
   Lwt_cstruct.sendto fd buf [] (ADDR_INET ((Ipaddr_unix.V4.to_inet_addr dst), dst_port))
   >>= fun _ ->
   return_unit
+
+let writev ?source_ip ?source_port ~dest_ip ~dest_port t buf =
+  failwith "unimplemented"
