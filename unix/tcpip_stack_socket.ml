@@ -102,9 +102,36 @@ let listen_udpv4 t ~port callback =
     (* FIXME: we should not ignore the result *)
     ignore_result (loop ())
 
-let listen_tcpv4 _t ~on_flow_arrival callback =
-  failwith "there is no socket api for on_flow_arrival"
+let listen_tcpv4 _t ~port callback =
+  if port < 0 || port > 65535 then
+    raise (Invalid_argument (err_invalid_port port))
+  else
+    let open Lwt_unix in
+    let fd = socket PF_INET SOCK_STREAM 0 in
+    setsockopt fd SO_REUSEADDR true;
+    let interface = Ipaddr_unix.V4.to_inet_addr Ipaddr.V4.any in (* TODO *)
+    bind fd (ADDR_INET (interface, port));
+    listen fd 10;
+    let rec loop () =
+      let continue () =
+        (* TODO cancellation *)
+        if true then loop () else return_unit in
+      Lwt_unix.accept fd
+      >>= fun (afd, _) ->
+      Lwt.async (fun () ->
+                 Lwt.catch
+                   (fun () -> callback afd)
+                   (fun _ -> return_unit)
+                );
+      return_unit
+      >>= fun () ->
+      continue ();
+    in
+    (* FIXME: we should not ignore the result *)
+    ignore_result (loop ())
 
+let listen_tcpv4_flow _t ~on_flow_arrival =
+    failwith "there is no socket api for on_flow_arrival"
 
 let listen _t =
   let t, _ = Lwt.task () in
