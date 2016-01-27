@@ -71,6 +71,7 @@ struct
     udpv4 : Udpv4.t;
     tcpv4 : Tcpv4.t;
     udpv4_listeners: (int, Udpv4.callback) Hashtbl.t;
+    tcpv4_listeners: (int, (Tcpv4.flow -> unit Lwt.t)) Hashtbl.t;
     mutable tcpv4_on_flow_arrival: tcpv4_on_flow_arrival_callback;
   }
 
@@ -90,7 +91,19 @@ struct
     then raise (Invalid_argument (err_invalid_port port))
     else Hashtbl.replace t.udpv4_listeners port callback
 
-  let listen_tcpv4 t ~on_flow_arrival = t.tcpv4_on_flow_arrival <- on_flow_arrival
+  let listen_tcpv4 t ~port callback =
+    if port < 0 || port > 65535
+    then raise (Invalid_argument (err_invalid_port port))
+    else Hashtbl.replace t.tcpv4_listeners port callback
+
+  let listen_tcpv4_flow t ~on_flow_arrival =
+    (* Wrap the callback to check the registered listeners first, treating
+       the [on_flow_arrival] callback as a default *)
+    t.tcpv4_on_flow_arrival <-
+      (fun ~src ~dst:(ip, port) ->
+        (if Hashtbl.mem t.tcpv4_listeners port
+         then Lwt.return (`Accept (Hashtbl.find t.tcpv4_listeners port))
+         else on_flow_arrival ~src ~dst:(ip, port)))
 
   let configure_dhcp t info =
     Ipv4.set_ip t.ipv4 info.Dhcp.ip_addr
@@ -157,10 +170,11 @@ struct
     Console.log_s c "Manager: connect"
     >>= fun () ->
     let udpv4_listeners = Hashtbl.create 7 in
+    let tcpv4_listeners = Hashtbl.create 7 in
     let udpv4_default ~src ~dst ~src_port ~dst_port = `Reject in
     let tcpv4_on_flow_arrival ~src ~dst = Lwt.return `Reject in
     let t = { id; c; mode; netif; ethif; arpv4; ipv4; tcpv4; udpv4;
-              udpv4_listeners; tcpv4_on_flow_arrival } in
+              udpv4_listeners; tcpv4_listeners; tcpv4_on_flow_arrival } in
     Console.log_s t.c "Manager: configuring"
     >>= fun () ->
     let _ = listen t in
