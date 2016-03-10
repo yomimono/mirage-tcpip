@@ -39,6 +39,7 @@ let input _ ~tcp:_ ~udp:_ ~default:_ _ = return_unit
 let allocate_frame _ ~dst:_ ~proto:_ = raise (Failure "Not implemented")
 let write _ _ _ = fail (Failure "Not implemented")
 let writev _ _ _ = fail (Failure "Not implemented")
+let output _ ~dst:_ ~proto:_ = raise (Failure "Not implemented")
 
 let get_ip _ = [Ipaddr.V4.of_string_exn "0.0.0.0"]
 let set_ip _ _ = fail (Failure "Not implemented")

@@ -37,6 +37,11 @@ module Raw(Netif : V1_LWT.NETWORK) = struct
   let id t = t.netif
   let mac t = Netif.mac t.netif
 
+  (* some default logic -- an ethernet frame is interesting if
+   * it looks like the sender intended for us to receive it *)
+  let for_us t dest =
+    Macaddr.compare dest (mac t) = 0 || not (Macaddr.is_unicast dest)
+
   let input ~arpv4 ~ipv4 ~ipv6 t frame =
     match Wire_structs.parse_ethernet_frame frame with
     | None -> Lwt.return_unit

@@ -132,6 +132,22 @@ module Make(Ethif: V1_LWT.ETHIF) (Arpv4 : V1_LWT.ARP) = struct
   let write t frame buf =
     writev t frame [buf]
 
+  let output t ~dst ~proto payload =
+    (* TODO: does this really need to be page-aligned? *)
+    let buf = Io_page.to_cstruct (Io_page.get 1) in
+    (* Write the constant IPv4 header fields *)
+    Wire_structs.Ipv4_wire.set_ipv4_hlen_version buf ((4 lsl 4) + (5)); (* TODO options *)
+    Wire_structs.Ipv4_wire.set_ipv4_tos buf 0;
+    Wire_structs.Ipv4_wire.set_ipv4_off buf 0; (* TODO fragmentation *)
+    Wire_structs.Ipv4_wire.set_ipv4_ttl buf 38; (* TODO *)
+    let proto = Wire_structs.Ipv4_wire.protocol_to_int proto in
+    Wire_structs.Ipv4_wire.set_ipv4_proto buf proto;
+    Wire_structs.Ipv4_wire.set_ipv4_src buf (Ipaddr.V4.to_int32 t.ip);
+    Wire_structs.Ipv4_wire.set_ipv4_dst buf (Ipaddr.V4.to_int32 dst);
+    Routing.destination_mac t dst >>= fun dst ->
+    Ethif.output t.ethif ~dst ~proto:`IPv4 (buf :: payload)
+
+
   let icmp_dst_unreachable buf =
     let descr =
       match Wire_structs.Ipv4_wire.get_icmpv4_code buf with

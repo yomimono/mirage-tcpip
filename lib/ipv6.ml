@@ -937,6 +937,8 @@ module Make (E : V1_LWT.ETHIF) (T : V1_LWT.TIME) (C : V1.CLOCK) = struct
   let write t frame buf =
     writev t frame [buf]
 
+  let output t ~dst ~proto payload = failwith "Unimplemented!"
+
   let input t ~tcp ~udp ~default buf =
     let now = C.time () in
     match input ~now t.state buf with
