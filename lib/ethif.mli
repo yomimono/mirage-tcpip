@@ -17,5 +17,16 @@
 
 module Make ( N:V1_LWT.NETWORK ) : sig
   include V1_LWT.ETHIF with type netif = N.t
+  (** [input] processes all ethernet frames from [N] that are relevant to us
+      (i.e are addressed to us or are broadcast). *)
+
+  val connect : netif -> [> `Ok of t | `Error of error ] Lwt.t
+end
+
+module Raw ( N:V1_LWT.NETWORK ) : sig
+  include V1_LWT.ETHIF with type netif = N.t
+  (** [input] processes all ethernet frames from [N], even those addressed to
+      other machines. *)
+
   val connect : netif -> [> `Ok of t | `Error of error ] Lwt.t
 end
