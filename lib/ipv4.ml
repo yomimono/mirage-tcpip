@@ -133,20 +133,37 @@ module Make(Ethif: V1_LWT.ETHIF) (Arpv4 : V1_LWT.ARP) = struct
     writev t frame [buf]
 
   let output t ~dst ~proto payload =
+    let open Wire_structs in
+    let header_len = Ipv4_wire.sizeof_ipv4 (* TODO options *) in
     (* TODO: does this really need to be page-aligned? *)
     let buf = Io_page.to_cstruct (Io_page.get 1) in
+    let buf = Cstruct.set_len buf header_len in
     (* Write the constant IPv4 header fields *)
-    Wire_structs.Ipv4_wire.set_ipv4_hlen_version buf ((4 lsl 4) + (5)); (* TODO options *)
-    Wire_structs.Ipv4_wire.set_ipv4_tos buf 0;
-    Wire_structs.Ipv4_wire.set_ipv4_off buf 0; (* TODO fragmentation *)
-    Wire_structs.Ipv4_wire.set_ipv4_ttl buf 38; (* TODO *)
-    let proto = Wire_structs.Ipv4_wire.protocol_to_int proto in
-    Wire_structs.Ipv4_wire.set_ipv4_proto buf proto;
-    Wire_structs.Ipv4_wire.set_ipv4_src buf (Ipaddr.V4.to_int32 t.ip);
-    Wire_structs.Ipv4_wire.set_ipv4_dst buf (Ipaddr.V4.to_int32 dst);
+    Ipv4_wire.set_ipv4_hlen_version buf ((4 lsl 4) + (header_len / 4));
+    Ipv4_wire.set_ipv4_tos buf 0;
+    Ipv4_wire.set_ipv4_off buf 0; (* TODO fragmentation *)
+    Ipv4_wire.set_ipv4_ttl buf 38; (* TODO *)
+    let proto = Ipv4_wire.protocol_to_int proto in
+    Ipv4_wire.set_ipv4_proto buf proto;
+    Ipv4_wire.set_ipv4_src buf (Ipaddr.V4.to_int32 t.ip);
+    Ipv4_wire.set_ipv4_dst buf (Ipaddr.V4.to_int32 dst);
+    Ipv4_wire.set_ipv4_len buf @@ header_len + (Cstruct.lenv payload);
     Routing.destination_mac t dst >>= fun dst ->
     Ethif.output t.ethif ~dst ~proto:`IPv4 (buf :: payload)
 
+  let pseudoheader t ~dst ~proto len =
+    let open Wire_structs in
+    (* TCP and UDP pseudoheaders are the same, except for the proto field *)
+    let ph = Cstruct.create 12 in
+    let numify = Ipaddr.V4.to_int32 in
+    Tcp_wire.set_tcpv4_pseudo_header_dst ph @@ numify dst;
+    Tcp_wire.set_tcpv4_pseudo_header_src ph @@ numify t.ip;
+    Tcp_wire.set_tcpv4_pseudo_header_res ph 0;
+    Tcp_wire.set_tcpv4_pseudo_header_proto ph (match proto with
+        | `TCP -> 6
+        | `UDP -> 17);
+    Tcp_wire.set_tcpv4_pseudo_header_len ph len;
+    ph
 
   let icmp_dst_unreachable buf =
     let descr =
@@ -240,9 +257,8 @@ module Make(Ethif: V1_LWT.ETHIF) (Arpv4 : V1_LWT.ARP) = struct
 
   let get_ip_gateways { gateways; _ } = gateways
 
-  let checksum frame =
-    let packet = Cstruct.shift frame Wire_structs.sizeof_ethernet in
-    Wire_structs.Ipv4_wire.checksum packet
+  let checksum =
+    Wire_structs.Ipv4_wire.checksum
 
   let get_source t ~dst:_ =
     t.ip

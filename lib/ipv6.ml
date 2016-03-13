@@ -922,6 +922,18 @@ module Make (E : V1_LWT.ETHIF) (T : V1_LWT.TIME) (C : V1.CLOCK) = struct
         E.writev t.ethif pkt
     end acts
 
+  let pseudoheader t ~dst ~proto len =
+    let ph = Cstruct.create (16 + 16 + 8) in
+    let src = AddressList.select_source t.state.address_list ~dst in
+    Ipaddr.to_cstruct_raw src ph 0;
+    Ipaddr.to_cstruct_raw dst ph 16;
+    Cstruct.BE.set_uint32 ph 32 (Int32.of_int len);
+    Cstruct.set_uint8 ph 36 0;
+    Cstruct.set_uint8 ph 37 0;
+    Cstruct.set_uint8 ph 38 0;
+    Cstruct.set_uint8 ph 39 (match proto with | `UDP -> 17 | `TCP -> 6);
+    ph
+
   let allocate_frame t ~dst ~proto =
     let proto = Ipv6_wire.protocol_to_int proto in
     let src = AddressList.select_source t.state.address_list dst in

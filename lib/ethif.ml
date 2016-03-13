@@ -68,6 +68,8 @@ module Raw(Netif : V1_LWT.NETWORK) = struct
     ) in
     let proto_num = Wire_structs.ethertype_to_int proto in
     let ethernet_frame = Io_page.to_cstruct (Io_page.get 1) in
+    let ethernet_frame = Cstruct.set_len ethernet_frame
+        Wire_structs.sizeof_ethernet in
     let smac = Macaddr.to_bytes (mac t) in
     Wire_structs.set_ethernet_src smac 0 ethernet_frame;
     Wire_structs.set_ethernet_ethertype ethernet_frame proto_num;
@@ -90,6 +92,6 @@ module Make(Netif : V1_LWT.NETWORK) = struct
       Macaddr.compare dest (mac t) = 0 || not (Macaddr.is_unicast dest) in
     match Macaddr.of_bytes (Wire_structs.copy_ethernet_dst frame) with
     | Some dst when of_interest dst -> input ~arpv4 ~ipv4 ~ipv6 t frame
-    | None -> Lwt.return_unit         (* Can't parse MAC address *)
+    | Some _ | None -> Lwt.return_unit
     | exception _ -> Lwt.return_unit  (* e.g. frame too short - could maybe log at debug level here *)
 end
