@@ -49,24 +49,21 @@ module Make(Ip: V1_LWT.IP) = struct
       let src_port = Wire_structs.get_udp_source_port buf in
       fn ~src ~dst ~src_port data
 
-  let writev ?source_port ~dest_ip ~dest_port t bufs =
-    begin match source_port with
-      | None   -> Lwt.fail (Failure "TODO; random source port")
-      | Some p -> Lwt.return p
-    end >>= fun source_port ->
-    let frame, header_len = Ip.allocate_frame t.ip ~dst:dest_ip ~proto:`UDP in
-    let frame = Cstruct.set_len frame (header_len + Wire_structs.sizeof_udp) in
-    let udp_buf = Cstruct.shift frame header_len in
-    Wire_structs.set_udp_source_port udp_buf source_port;
-    Wire_structs.set_udp_dest_port udp_buf dest_port;
-    Wire_structs.set_udp_length udp_buf (Wire_structs.sizeof_udp + Cstruct.lenv bufs);
-    (* Wire_structs.set_udp_checksum udp_buf 0; *)
-    let csum = Ip.checksum frame (udp_buf :: bufs) in
-    Wire_structs.set_udp_checksum udp_buf csum;
-    Ip.writev t.ip frame bufs
+  let writev ~source_port ~dest_ip ~dest_port t bufs =
+    let open Wire_structs in
+    let udp_header = Io_page.(get 1 |> to_cstruct) in (*TODO: does this need
+                                                        page-alignment? *)
+    let udp_header = Cstruct.set_len udp_header sizeof_udp in
+    set_udp_source_port udp_header source_port;
+    set_udp_dest_port udp_header dest_port;
+    set_udp_length udp_header (sizeof_udp + Cstruct.lenv bufs);
+    let pseudoheader = Ip.pseudoheader t.ip ~dst:dest_ip ~proto:`UDP sizeof_udp in
+    let csum = Ip.checksum pseudoheader (udp_header :: bufs) in
+    set_udp_checksum udp_header csum;
+    Ip.output t.ip ~dst:dest_ip ~proto:`UDP (udp_header :: bufs)
 
-  let write ?source_port ~dest_ip ~dest_port t buf =
-    writev ?source_port ~dest_ip ~dest_port t [buf]
+  let write ~source_port ~dest_ip ~dest_port t buf =
+    writev ~source_port ~dest_ip ~dest_port t [buf]
 
   let connect ip = Lwt.return (`Ok { ip })
 
