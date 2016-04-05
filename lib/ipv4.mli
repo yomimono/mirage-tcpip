@@ -31,4 +31,5 @@ module Make (N:V1_LWT.ETHIF) (A: V1_LWT.ARP) : sig
         Default netmask is {!Ipaddr.V4.any}
         Default gateways are [[]]. *)
 
+  val allocate: t -> src:ipaddr -> dst:ipaddr -> proto:[`ICMP | `TCP | `UDP] -> buffer * int
 end

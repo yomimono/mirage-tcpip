@@ -40,6 +40,12 @@ let error_message = function
   | `Timeout -> "Timeout while attempting to connect"
   | `Refused -> "Connection refused"
 
+type action = [
+  | `Reject
+  | `Accept of callback
+]
+type on_flow_arrival_callback = src:(ipaddr * int) -> dst:(ipaddr * int) -> action io
+
 let connect id =
   let t =
     match id with
@@ -122,6 +128,11 @@ let close fd =
 
 (* FIXME: how does this work at all ?? *)
 let input _t ~listeners:_ =
+  (* TODO terminate when signalled by disconnect *)
+  let t, _ = Lwt.task () in
+  t
+
+let input_flow _t ~on_flow_arrival:_ =
   (* TODO terminate when signalled by disconnect *)
   let t, _ = Lwt.task () in
   t

@@ -50,7 +50,7 @@ type pseudo_header = {
     len:   uint16_t;
   } [@@big_endian]
 ]
-module Make(Ip:V1_LWT.IP)(Time:V1_LWT.TIME)(Clock:V1.CLOCK)(Random:V1.RANDOM) =
+module Make(Ip:Wire.IP)(Time:V1_LWT.TIME)(Clock:V1.CLOCK)(Random:V1.RANDOM) =
 struct
 
   module RXS = Segment.Rx(Time)
@@ -70,6 +70,12 @@ struct
     urx: User_buffer.Rx.t;    (* App rx buffer *)
     utx: UTX.t;               (* App tx buffer *)
   }
+  type action = [
+    | `Reject
+    | `Accept of (pcb -> unit Lwt.t)
+  ]
+
+  type on_flow_arrival_callback = src:(Ip.ipaddr * int) -> dst:(Ip.ipaddr * int) -> action Lwt.t
 
   type connection = pcb * unit Lwt.t
 
@@ -449,10 +455,11 @@ struct
          - send RST *)
       Tx.send_rst t id ~sequence ~ack_number ~syn ~fin
 
-  let process_syn t id ~listeners ~pkt ~ack_number ~sequence ~options ~syn ~fin =
+  let process_syn t id ~on_flow_arrival ~pkt ~ack_number ~sequence ~options ~syn ~fin =
     Log.f debug (with_stats "process-syn" t);
-    match listeners id.WIRE.local_port with
-    | Some pushf ->
+    on_flow_arrival ~src:(id.WIRE.local_ip, id.WIRE.local_port) ~dst:(id.WIRE.dest_ip, id.WIRE.dest_port)
+    >>= function
+    | `Accept pushf ->
       let tx_isn = Sequence.of_int ((Random.int 65535) + 0x1AFE0000) in
       let tx_wnd = Tcp_wire.get_tcp_window pkt in
       (* TODO: make this configurable per listener *)
@@ -463,7 +470,7 @@ struct
         id pushf
       >>= fun _ ->
       Lwt.return_unit
-    | None ->
+    | `Reject ->
       Tx.send_rst t id ~sequence ~ack_number ~syn ~fin
 
   let process_ack t id ~pkt ~ack_number ~sequence ~syn ~fin =
@@ -492,9 +499,13 @@ struct
         (* ACK but no matching pcb and no listen - send RST *)
         Tx.send_rst t id ~sequence ~ack_number ~syn ~fin
 
+<<<<<<< HEAD
   let input_no_pcb t listeners pkt id =
     let ack = Tcp_wire.get_ack pkt in
     let ack_number = Tcp_wire.get_tcp_ack_number pkt in
+=======
+  let input_no_pcb t on_flow_arrival pkt id =
+>>>>>>> djs55/3.0.0-beta
     match Tcp_wire.get_rst pkt with
     | true -> process_reset t id ~ack ~ack_number
     | false ->
@@ -505,7 +516,7 @@ struct
       match syn, ack with
       | true , true  -> process_synack t id ~pkt ~ack_number ~sequence
                           ~options ~syn ~fin
-      | true , false -> process_syn t id ~listeners ~pkt ~ack_number ~sequence
+      | true , false -> process_syn t id ~on_flow_arrival ~pkt ~ack_number ~sequence
                           ~options ~syn ~fin
       | false, true  -> process_ack t id ~pkt ~ack_number ~sequence ~syn ~fin
       | false, false ->
@@ -514,7 +525,8 @@ struct
         Lwt.return_unit
 
   (* Main input function for TCP packets *)
-  let input t ~listeners ~src ~dst data =
+  let input_flow t ~on_flow_arrival ~src ~dst data =
+    let (_: on_flow_arrival_callback) = on_flow_arrival in
     match verify_checksum src dst data with
     | false ->
       Log.s debug "RX.input: checksum error";
@@ -533,7 +545,14 @@ struct
         (* PCB exists, so continue the connection state machine in tcp_input *)
         (Rx.input t data)
         (* No existing PCB, so check if it is a SYN for a listening function *)
-        (input_no_pcb t listeners data)
+        (input_no_pcb t on_flow_arrival data)
+
+  let input t ~listeners ~src ~dst data =
+    input_flow t ~on_flow_arrival:(fun ~src ~dst:(_, dst_port) ->
+      match listeners dst_port with
+      | None -> Lwt.return `Reject
+      | Some flow_cb -> Lwt.return (`Accept flow_cb)
+    ) ~src ~dst data
 
   (* Blocking read on a PCB *)
   let read pcb =
