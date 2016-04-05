@@ -499,13 +499,9 @@ struct
         (* ACK but no matching pcb and no listen - send RST *)
         Tx.send_rst t id ~sequence ~ack_number ~syn ~fin
 
-<<<<<<< HEAD
-  let input_no_pcb t listeners pkt id =
+  let input_no_pcb t on_flow_arrival pkt id =
     let ack = Tcp_wire.get_ack pkt in
     let ack_number = Tcp_wire.get_tcp_ack_number pkt in
-=======
-  let input_no_pcb t on_flow_arrival pkt id =
->>>>>>> djs55/3.0.0-beta
     match Tcp_wire.get_rst pkt with
     | true -> process_reset t id ~ack ~ack_number
     | false ->
