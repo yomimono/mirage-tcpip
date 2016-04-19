@@ -361,7 +361,8 @@ Executable test
   BuildDepends:       alcotest, oUnit, lwt, lwt.unix, io-page.unix,
                       mirage-profile, mirage-flow, mirage-vnetif,
                       mirage-console.unix, mirage-clock-unix,
-                      tcpip.ethif, tcpip.icmpv4, tcpip.arpv4, tcpip.tcp, pcap-format
+                      tcpip.ethif, tcpip.icmpv4, tcpip.arpv4, tcpip.tcp, pcap-format,
+                      tcpip.udpv4-socket, tcpip.tcpv4-socket, tcpip.stack-socket
 
 Test test
   Run$:               flag(tests)

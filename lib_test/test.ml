@@ -15,6 +15,7 @@
  *)
 
 let suite = [
+  "socket"         , Test_socket.suite      ;
   "icmpv4"         , Test_icmpv4.suite      ;
   "arp"            , Test_arp.suite         ;
   "connect"        , Test_connect.suite     ;

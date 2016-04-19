@@ -1,5 +1,5 @@
 (* OASIS_START *)
-(* DO NOT EDIT (digest: ba3ae7c3c8a8229a6afa9f2c8d480119) *)
+(* DO NOT EDIT (digest: ef2cbc58a8110dd27da9df29df65fcd0) *)
 module OASISGettext = struct
 (* # 22 "src/oasis/OASISGettext.ml" *)
 
@@ -656,7 +656,7 @@ let package_default =
        [
           ("unix", ["lib"; "tcp"]);
           ("tcp", ["lib"]);
-          ("lib_test", ["lib"; "lib/icmp"; "tcp"]);
+          ("lib_test", ["lib"; "lib/icmp"; "tcp"; "unix"]);
           ("lib/icmp", ["lib"]);
           ("lib", ["dhcp"; "lib/icmp"; "tcp"]);
           ("dhcp", ["lib"])
