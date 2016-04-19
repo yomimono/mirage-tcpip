@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: ef6850583b5e8f477ff48fc0b6b85a9d)
+# DO NOT EDIT (digest: f0d28cd8b762f0e802387bbd5b4dbcc8)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -123,6 +123,8 @@ true: annot, bin_annot
 "unix/udpv4-unix.cmxs": use_udpv4-unix
 # Library udpv6-unix
 "unix/udpv6-unix.cmxs": use_udpv6-unix
+# Library icmpv4-socket
+"unix/icmpv4-socket.cmxs": use_icmpv4-socket
 # Library udpv4-socket
 "unix/udpv4-socket.cmxs": use_udpv4-socket
 # Library udpv6-socket

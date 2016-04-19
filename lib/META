@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 71f162b768346818e543ecd443a3a10b)
+# DO NOT EDIT (digest: 60a44e0bc29d66327db8685b29b9ab4a)
 version = "2.8.0"
 description =
 "Implementations for network-related module types from MirageOS."
@@ -245,6 +245,18 @@ package "icmpv4-unix" (
  archive(native) = "icmpv4-unix.cmxa"
  archive(native, plugin) = "icmpv4-unix.cmxs"
  exists_if = "icmpv4-unix.cma"
+)
+
+package "icmpv4-socket" (
+ version = "2.8.0"
+ description =
+ "Implementations for network-related module types from MirageOS."
+ requires = "lwt lwt.unix ipaddr.unix cstruct.lwt io-page.unix"
+ archive(byte) = "icmpv4-socket.cma"
+ archive(byte, plugin) = "icmpv4-socket.cma"
+ archive(native) = "icmpv4-socket.cmxa"
+ archive(native, plugin) = "icmpv4-socket.cmxs"
+ exists_if = "icmpv4-socket.cma"
 )
 
 package "icmpv4" (
