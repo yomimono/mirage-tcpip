@@ -1,7 +1,8 @@
-let echo_request ?payload id seq =
-  let open Icmpv4_wire in
+open Icmpv4_wire
+
+let echo ?payload ty id seq =
   let header = Cstruct.create sizeof_icmpv4 in
-  set_icmpv4_ty header 0x08;
+  set_icmpv4_ty header (ty_to_int ty);
   set_icmpv4_code header 0x00;
   set_icmpv4_csum header 0x0000;
   set_icmpv4_seq header seq;
@@ -12,3 +13,9 @@ let echo_request ?payload id seq =
   in
   set_icmpv4_csum header (Tcpip_checksum.ones_complement_list [ packet ]);
   packet
+
+let echo_request ?payload id seq =
+  echo ?payload Echo_request id seq
+
+let echo_reply ?payload id seq =
+  echo ?payload Echo_reply id seq
