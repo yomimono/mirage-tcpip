@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: f0d28cd8b762f0e802387bbd5b4dbcc8)
+# DO NOT EDIT (digest: 3441fdd24b7e9c4daa816c4a5eb85c17)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -50,6 +50,7 @@ true: annot, bin_annot
 <lib/icmp/*.ml{,i,y}>: pkg_mirage-profile
 <lib/icmp/*.ml{,i,y}>: pkg_mirage-types
 <lib/icmp/*.ml{,i,y}>: pkg_result
+<lib/icmp/*.ml{,i,y}>: pkg_rresult
 <lib/icmp/*.ml{,i,y}>: use_tcpip
 # Library udp
 "lib/udp.cmxs": use_udp
@@ -102,6 +103,7 @@ true: annot, bin_annot
 <lib/*.ml{,i,y}>: pkg_mirage-profile
 <lib/*.ml{,i,y}>: pkg_mirage-types
 <lib/*.ml{,i,y}>: pkg_result
+<lib/*.ml{,i,y}>: pkg_rresult
 <lib/*.ml{,i,y}>: use_arpv4
 <lib/*.ml{,i,y}>: use_dhcpv4
 <lib/*.ml{,i,y}>: use_ethif
@@ -148,6 +150,7 @@ true: annot, bin_annot
 <unix/*.ml{,i,y}>: pkg_mirage-types.lwt
 <unix/*.ml{,i,y}>: pkg_mirage-unix
 <unix/*.ml{,i,y}>: pkg_result
+<unix/*.ml{,i,y}>: pkg_rresult
 <unix/*.ml{,i,y}>: use_arpv4
 <unix/*.ml{,i,y}>: use_dhcpv4
 <unix/*.ml{,i,y}>: use_ethif
@@ -205,6 +208,7 @@ true: annot, bin_annot
 <lib_test/test.{native,byte}>: pkg_oUnit
 <lib_test/test.{native,byte}>: pkg_pcap-format
 <lib_test/test.{native,byte}>: pkg_result
+<lib_test/test.{native,byte}>: pkg_rresult
 <lib_test/test.{native,byte}>: use_arpv4
 <lib_test/test.{native,byte}>: use_ethif
 <lib_test/test.{native,byte}>: use_icmpv4
@@ -238,6 +242,7 @@ true: annot, bin_annot
 <lib_test/*.ml{,i,y}>: pkg_oUnit
 <lib_test/*.ml{,i,y}>: pkg_pcap-format
 <lib_test/*.ml{,i,y}>: pkg_result
+<lib_test/*.ml{,i,y}>: pkg_rresult
 <lib_test/*.ml{,i,y}>: use_arpv4
 <lib_test/*.ml{,i,y}>: use_ethif
 <lib_test/*.ml{,i,y}>: use_icmpv4

@@ -1,4 +1,4 @@
-
+open Icmpv4_wire
 (* second 4 bytes of the message have varying interpretations *)
 type subheader =
   | Id_and_seq of Cstruct.uint16 * Cstruct.uint16
@@ -8,7 +8,7 @@ type subheader =
 
 type t = {
   code : Cstruct.uint8;
-  ty : Cstruct.uint8;
+  ty : ty;
   csum : Cstruct.uint16;
   subheader : subheader;
   payload : Cstruct.t option;
@@ -17,18 +17,28 @@ type t = {
 let subheader_of_cstruct ty buf =
   let open Cstruct.BE in
   match ty with
-  | 0 | 8 | 13 | 14 | 15 | 16 -> Id_and_seq (get_uint16 buf 0, get_uint16 buf 2)
-  | 3 | 11 | 4 -> Unused
-  | 5 -> Address (Ipaddr.V4.of_int32 (get_uint32 buf 0))
-  | 12 -> Pointer (Cstruct.get_uint8 buf 0)
-  | _ -> Unused
+  | Echo_request | Echo_reply
+  | Timestamp_request | Timestamp_reply
+  | Information_request | Information_reply ->
+    Id_and_seq (get_uint16 buf 0, get_uint16 buf 2)
+  | Destination_unreachable
+  | Time_exceeded
+  | Source_quench -> Unused
+  | Redirect -> Address (Ipaddr.V4.of_int32 (get_uint32 buf 0))
+  | Parameter_problem -> Pointer (Cstruct.get_uint8 buf 0)
 
 let input buf =
-  if Cstruct.len buf < Icmpv4_wire.sizeof_icmpv4 then
+  let open Rresult in
+  let check_len () =
+  if Cstruct.len buf < sizeof_icmpv4 then
     Result.Error "packet too short for ICMPv4 header"
-  else begin
-    let open Icmpv4_wire in
-    let ty = get_icmpv4_ty buf in
+  else Result.Ok () in
+  let check_ty () =
+    match int_to_ty (get_icmpv4_ty buf) with
+    | None -> Result.Error "unrecognized ICMPv4 type"
+    | Some ty -> Result.Ok ty
+  in
+  check_len () >>= check_ty >>= fun ty ->
     let code = get_icmpv4_code buf in
     let csum = get_icmpv4_csum buf in
     let subheader = subheader_of_cstruct ty (Cstruct.shift buf 4) in
@@ -38,4 +48,3 @@ let input buf =
       else None
     in
     Result.Ok { code; ty; csum; subheader; payload }
-  end

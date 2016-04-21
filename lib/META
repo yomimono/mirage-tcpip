@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 60a44e0bc29d66327db8685b29b9ab4a)
+# DO NOT EDIT (digest: b39e30479ea8972a5405a56dec195ff1)
 version = "2.8.0"
 description =
 "Implementations for network-related module types from MirageOS."
@@ -263,7 +263,7 @@ package "icmpv4" (
  version = "2.8.0"
  description =
  "Implementations for network-related module types from MirageOS."
- requires = "io-page mirage-types ipaddr cstruct lwt tcpip result"
+ requires = "io-page mirage-types ipaddr cstruct lwt tcpip result rresult"
  archive(byte) = "icmpv4.cma"
  archive(byte, plugin) = "icmpv4.cma"
  archive(native) = "icmpv4.cmxa"
