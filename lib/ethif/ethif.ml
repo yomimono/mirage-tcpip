@@ -20,7 +20,7 @@ open Result
 let src = Logs.Src.create "ethif" ~doc:"Mirage Ethernet"
 module Log = (val Logs.src_log src : Logs.LOG)
 
-module Make(Netif : V1_LWT.NETWORK) = struct
+module Common(Netif : V1_LWT.NETWORK) = struct
 
   type 'a io = 'a Lwt.t
   type buffer = Cstruct.t
@@ -75,4 +75,34 @@ module Make(Netif : V1_LWT.NETWORK) = struct
   let disconnect t =
     Log.info (fun f -> f "Disconnected Ethernet interface %s" (Macaddr.to_string (mac t)));
     Lwt.return_unit
+end
+
+module Make(Netif : V1_LWT.NETWORK) = struct
+  module C = Common(Netif)
+  include C
+
+  let input ~arpv4 ~ipv4 ~ipv6 t frame =
+    let open Ethif_packet in
+    MProf.Trace.label "ethif.input";
+    let of_interest dest =
+      Macaddr.compare dest (mac t) = 0 || not (Macaddr.is_unicast dest)
+    in
+    match Unmarshal.of_cstruct frame with
+    | Ok (header, payload) when of_interest header.destination ->
+      begin
+        let open Ethif_wire in
+        match header.ethertype with
+        | ARP -> arpv4 payload
+        | IPv4 -> ipv4 payload
+        | IPv6 -> ipv6 payload
+      end
+    | Ok _ -> Lwt.return_unit
+    | Error s -> Log.debug (fun f -> f "Dropping Ethernet frame: %s" s);
+      Lwt.return_unit
+
+end
+
+module Raw(Netif : V1_LWT.NETWORK) = struct
+  module C = Common(Netif)
+  include C
 end
