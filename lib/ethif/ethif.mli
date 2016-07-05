@@ -15,7 +15,24 @@
  *
  *)
 
+(** the default module provides a pass-through for writing packets directly
+    to the physical network layer.
+    its `write` and `writev` functions will *not* add Ethernet headers to the
+    buffer provided as an argument; the caller is responsible for assembling
+    said headers.
+    its `listen` function will pass incoming buffers which have an Ethernet
+    destination that appears to be relevant (either broadcast or unicast to
+    the Ethernet address of the underlying netif) to the supplied functions.
+*)
 module Make ( N:V1_LWT.NETWORK ) : sig
+  include V1_LWT.ETHIF with type netif = N.t
+  val connect : netif -> [> `Ok of t | `Error of error ] Lwt.t
+end
+
+(** module Raw functions as Make above, but does not check the destination
+    addresses of packets received via `listen`.  It will pass traffic to the
+    listeners provided regardless of their destination address. *)
+module Raw ( N:V1_LWT.NETWORK ) : sig
   include V1_LWT.ETHIF with type netif = N.t
   val connect : netif -> [> `Ok of t | `Error of error ] Lwt.t
 end
