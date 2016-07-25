@@ -65,16 +65,12 @@ let id { interface; _ } =
   let t, _ = Lwt.task () in
   t
 
-let write ?src_port ~dst ~dst_port t buf =
+let writev ?src ~src_port ~dst ~dst_port t bufs =
   let open Lwt_unix in
-  let fd =
-    match src_port with
-    | None -> get_udpv4_listening_fd t 0
-    | Some port -> get_udpv4_listening_fd t port
-  in
-  Lwt_cstruct.sendto fd buf [] (ADDR_INET ((Ipaddr_unix.V4.to_inet_addr dst), dst_port))
+  (* TODO: currently we silently discard a given ~src, which isn't the right thing to do *)
+  let fd = get_udpv4_listening_fd t src_port in
+  Lwt_cstruct.sendto fd (Cstruct.concat bufs) [] (ADDR_INET ((Ipaddr_unix.V4.to_inet_addr dst), dst_port))
   >>= fun _ ->
   return_unit
 
-let writev ?source_ip ?source_port ~dest_ip ~dest_port t buf =
-  failwith "unimplemented"
+let write ?src ~src_port ~dst ~dst_port t buf = writev ?src ~src_port ~dst ~dst_port t [buf]
