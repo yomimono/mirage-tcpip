@@ -14,11 +14,6 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *)
 
-val debug: Log.t
-val get_options : Cstruct.t -> Options.t list
-val set_options : Cstruct.t -> Options.t list -> int
-val get_payload : Cstruct.t -> Cstruct.t
-
 module type IP = sig
   include V1_LWT.IP
   val allocate: t -> src:ipaddr -> dst:ipaddr -> proto:[`ICMP | `TCP | `UDP] -> buffer * int
@@ -26,11 +21,13 @@ end
 
 module Make(Ip:IP) : sig
   type id = {
-    dest_port: int;               (* Remote TCP port *)
-    dest_ip: Ip.ipaddr;         (* Remote IP address *)
-    local_port: int;              (* Local TCP port *)
-    local_ip: Ip.ipaddr;        (* Local IP address *)
+    dst_port: int;               (* Remote TCP port *)
+    dst: Ip.ipaddr;         (* Remote IP address *)
+    src_port: int;              (* Local TCP port *)
+    src: Ip.ipaddr;        (* Local IP address *)
   }
+
+  val pp_id : Format.formatter -> id -> unit
 
   val xmit : ip:Ip.t -> id:id ->
     ?rst:bool -> ?syn:bool -> ?fin:bool -> ?psh:bool ->
