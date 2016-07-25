@@ -54,7 +54,7 @@ module Make(Ip: V1_LWT.IP) = struct
   let writev ?src ~src_port ~dst ~dst_port t bufs =
     begin match src_port with
       | n when n < 0 || n > 65535 -> Lwt.fail (Failure "source port not a 16-bit unsigned int")
-      | n -> Lwt.return src_port
+      | _ -> Lwt.return src_port
     end >>= fun src_port ->
     let payload_size = Cstruct.lenv bufs in
     let frame, header_len = Ip.allocate_frame ?src ~dst ~proto:`UDP t.ip in
