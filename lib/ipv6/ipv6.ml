@@ -47,12 +47,12 @@ module Make (E : V1_LWT.ETHIF) (T : V1_LWT.TIME) (C : V1.CLOCK) = struct
     in
     loop ()
 
-  let allocate_frame t ~dst ~proto =
-    Ndpv6.allocate_frame t.ctx dst proto
-
-  let allocate t ~src ~dst ~proto =
-    let proto = Ipv6_wire.protocol_to_int proto in
-    Ndpv6.Allocate.frame ~mac:(E.mac t.ethif) ~src ~hlim:64 ~dst ~proto
+  let allocate_frame ?src ~dst ~proto t =
+    match src with
+    | None -> Ndpv6.allocate_frame t.ctx dst proto
+    | Some src ->
+      let proto = Ipv6_wire.protocol_to_int proto in
+      Ndpv6.Allocate.frame ~mac:(E.mac t.ethif) ~src ~hlim:64 ~dst ~proto
 
   let writev t frame bufs =
     let now = C.time () in

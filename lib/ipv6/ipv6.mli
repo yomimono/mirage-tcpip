@@ -22,6 +22,4 @@ module Make (E : V1_LWT.ETHIF) (T : V1_LWT.TIME) (C : V1.CLOCK) : sig
     ?gateways:Ipaddr.V6.t list ->
     ethif -> [> `Ok of t | `Error of error ] Lwt.t
 
-  val allocate: t -> src:ipaddr -> dst:ipaddr -> proto:[`ICMP | `TCP | `UDP] -> buffer * int
-
 end

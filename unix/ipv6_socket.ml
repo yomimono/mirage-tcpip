@@ -36,7 +36,7 @@ let disconnect () = return_unit
 let connect () = return (`Ok ())
 
 let input _ ~tcp:_ ~udp:_ ~default:_ _ = return_unit
-let allocate_frame _ ~dst:_ ~proto:_ = raise (Failure "Not implemented")
+let allocate_frame ?src ~dst:_ ~proto:_ _ = raise (Failure "Not implemented")
 let write _ _ _ = fail (Failure "Not implemented")
 let writev _ _ _ = fail (Failure "Not implemented")
 

@@ -14,12 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *)
 
-module type IP = sig
-  include V1_LWT.IP
-  val allocate: t -> src:ipaddr -> dst:ipaddr -> proto:[`ICMP | `TCP | `UDP] -> buffer * int
-end
-
-module Make(Ip:IP) : sig
+module Make(Ip:V1_LWT.IP) : sig
   type id = {
     dst_port: int;               (* Remote TCP port *)
     dst: Ip.ipaddr;         (* Remote IP address *)
