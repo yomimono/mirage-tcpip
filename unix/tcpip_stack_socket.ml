@@ -60,6 +60,13 @@ type error = [
     `Unknown of string
 ]
 
+type tcpv4_action = [
+  | `Reject
+  | `Accept of Tcpv4.flow -> unit Lwt.t
+]
+
+type tcpv4_on_flow_arrival_callback = src:(ipv4addr * int) -> dst:(ipv4addr * int) -> tcpv4_action io
+
 let udpv4 { udpv4; _ } = udpv4
 let tcpv4 { tcpv4; _ } = tcpv4
 let ipv4 _ = None
