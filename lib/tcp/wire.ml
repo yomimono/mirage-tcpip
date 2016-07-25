@@ -19,7 +19,12 @@ module Log = (val Logs.src_log src : Logs.LOG)
 
 let count_tcp_to_ip = MProf.Counter.make ~name:"tcp-to-ip"
 
-module Make (Ip:V1_LWT.IP) = struct
+module type IP = sig
+  include V1_LWT.IP
+  val allocate: t -> src:ipaddr -> dst:ipaddr -> proto:[`ICMP | `TCP | `UDP] -> buffer * int
+end
+
+module Make (Ip:IP) = struct
   type id = {
     dst_port: int;             (* Remote TCP port *)
     dst: Ip.ipaddr;            (* Remote IP address *)
