@@ -14,7 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *)
 
-open Lwt
+open Lwt.Infix
 
 let src = Logs.Src.create "tcpip-stack-socket" ~doc:"Platform's native TCP/IP stack"
 module Log = (val Logs.src_log src : Logs.LOG)
@@ -74,13 +74,13 @@ let ipv4 _ = None
 (* List of IP addresses to bind to *)
 let configure _t addrs =
   match addrs with
-  | [] -> return_unit
-  | [ip] when (Ipaddr.V4.compare Ipaddr.V4.any ip) = 0 -> return_unit
+  | [] -> Lwt.return_unit
+  | [ip] when (Ipaddr.V4.compare Ipaddr.V4.any ip) = 0 -> Lwt.return_unit
   | l ->
     let pp_iplist fmt l = Format.pp_print_list Ipaddr.V4.pp_hum fmt l in
     Log.warn (fun f -> f
               "Manager: sockets currently bind to all available IPs. IPs %a were specified, but this will be ignored" pp_iplist l);
-    return_unit
+    Lwt.return_unit
 
 let err_invalid_port p = Printf.sprintf "invalid port number (%d)" p
 
@@ -93,7 +93,7 @@ let listen_udpv4 t ~port callback =
     let rec loop () =
       let continue () =
         (* TODO cancellation *)
-        if true then loop () else return_unit in
+        if true then loop () else Lwt.return_unit in
       Lwt_cstruct.recvfrom fd buf []
       >>= fun (len, sa) ->
       let buf = Cstruct.sub buf 0 len in
@@ -102,12 +102,12 @@ let listen_udpv4 t ~port callback =
                let src = Ipaddr_unix.V4.of_inet_addr_exn addr in
                let dst = Ipaddr.V4.any in (* TODO *)
                callback ~src ~dst ~src_port buf
-            | _ -> return_unit
+            | _ -> Lwt.return_unit
       end >>= fun () ->
       continue ()
     in
     (* FIXME: we should not ignore the result *)
-    ignore_result (loop ())
+    Lwt.ignore_result (loop ())
 
 let listen_tcpv4 _t ~port callback =
   if port < 0 || port > 65535 then
@@ -122,22 +122,22 @@ let listen_tcpv4 _t ~port callback =
     let rec loop () =
       let continue () =
         (* TODO cancellation *)
-        if true then loop () else return_unit in
+        if true then loop () else Lwt.return_unit in
       Lwt_unix.accept fd
       >>= fun (afd, _) ->
       Lwt.async (fun () ->
                  Lwt.catch
                    (fun () -> callback afd)
-                   (fun _ -> return_unit)
+                   (fun _ -> Lwt.return_unit)
                 );
-      return_unit
+      Lwt.return_unit
       >>= fun () ->
       continue ();
     in
     (* FIXME: we should not ignore the result *)
-    ignore_result (loop ())
+    Lwt.ignore_result (loop ())
 
-let listen_tcpv4_flow _t ~on_flow_arrival =
+let listen_tcpv4_flow _t ~on_flow_arrival:_ =
     failwith "there is no socket api for on_flow_arrival"
 
 let listen _t =
@@ -153,6 +153,6 @@ let connect id udpv4 tcpv4 =
   Log.info (fun f -> f "Manager: configuring");
   configure t interface
   >>= fun () ->
-  return (`Ok t)
+  Lwt.return (`Ok t)
 
-let disconnect _ = return_unit
+let disconnect _ = Lwt.return_unit

@@ -47,7 +47,7 @@ type action = [
 ]
 type on_flow_arrival_callback = src:(ipaddr * int) -> dst:(ipaddr * int) -> action io
 
-let connect id =
+let connect addr =
   let t =
     match addr with
     | None -> { interface=None }

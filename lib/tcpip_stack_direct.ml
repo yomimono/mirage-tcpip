@@ -177,12 +177,14 @@ struct
     Log.info (fun f -> f "Manager: connect");
     let udpv4_listeners = Hashtbl.create 7 in
     let tcpv4_listeners = Hashtbl.create 7 in
-    let udpv4_default ~src ~dst ~src_port ~dst_port = `Reject in
-    let tcpv4_on_flow_arrival ~src ~dst = Lwt.return `Reject in
+    (* the default behavior for an incoming flow should be rejection --
+     * we should only do something else when our rules specify that the
+     * traffic should be forwarded on to either a port mapping or an
+     * existing connection. *)
+    let tcpv4_on_flow_arrival ~src:_ ~dst:_ = Lwt.return `Reject in
     let t = { id; mode; netif; ethif; arpv4; ipv4; icmpv4; tcpv4; udpv4;
               udpv4_listeners; tcpv4_listeners; tcpv4_on_flow_arrival } in
     Log.info (fun f -> f "Manager: configuring");
-    >>= fun () ->
     let _ = listen t in
     configure t t.mode
     >>= fun () ->

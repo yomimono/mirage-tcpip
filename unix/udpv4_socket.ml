@@ -65,9 +65,9 @@ let id { interface; _ } =
   let t, _ = Lwt.task () in
   t
 
-let writev ?src ~src_port ~dst ~dst_port t bufs =
+(* TODO: currently we silently discard a given ~src, which isn't the right thing to do *)
+let writev ?src:_ ~src_port ~dst ~dst_port t bufs =
   let open Lwt_unix in
-  (* TODO: currently we silently discard a given ~src, which isn't the right thing to do *)
   let fd = get_udpv4_listening_fd t src_port in
   Lwt_cstruct.sendto fd (Cstruct.concat bufs) [] (ADDR_INET ((Ipaddr_unix.V4.to_inet_addr dst), dst_port))
   >>= fun _ ->

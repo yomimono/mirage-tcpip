@@ -27,13 +27,6 @@ module Make (Ip:V1_LWT.IP) = struct
     src: Ip.ipaddr;            (* Local IP address *)
   }
 
-  let wire ~src ~src_port ~dst ~dst_port =
-    { dst_port ; dst ; src_port ; src }
-
-  let src_port_of_id id = id.src_port
-
-  let dst_of_id id = (id.dst, id.dst_port)
-
   let pp_id fmt id =
     let uip = Ip.to_uipaddr in
     Format.fprintf fmt "remote %a,%d to local %a, %d"

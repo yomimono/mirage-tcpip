@@ -485,12 +485,12 @@ struct
     | Result.Error s -> Log.debug (fun f -> f "parsing TCP header failed: %s" s);
       Lwt.return_unit
     | Result.Ok (pkt, payload) ->
-      let id = WIRE.({
-        src = dst;
+      let id = {
+        WIRE.src = dst;
         dst = src;
         src_port = pkt.dst_port;
         dst_port = pkt.src_port;
-        }) in
+        } in
       (* Lookup connection from the active PCB hash *)
       with_hashtbl t.channels id
         (* PCB exists, so continue the connection state machine in tcp_input *)
@@ -499,7 +499,7 @@ struct
         (input_no_pcb t on_flow_arrival (pkt, payload))
 
   let input t ~listeners ~src ~dst data =
-    input_flow t ~on_flow_arrival:(fun ~src ~dst:(_, dst_port) ->
+    input_flow t ~on_flow_arrival:(fun ~src:_ ~dst:(_, dst_port) ->
       match listeners dst_port with
       | None -> Lwt.return `Reject
       | Some flow_cb -> Lwt.return (`Accept flow_cb)
@@ -554,7 +554,7 @@ struct
   (* Close - no more will be written *)
   let close pcb = Tx.close pcb
 
-  let dst pcb = (pcb.id.dst, pcb.id.dst_port)
+  let dst pcb = WIRE.(pcb.id.dst, pcb.id.dst_port)
 
   let getid t dst dst_port =
     let open WIRE in
