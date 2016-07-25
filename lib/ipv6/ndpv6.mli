@@ -78,3 +78,8 @@ val add_routers : now:float -> context -> ipaddr list -> context
 
 val get_routers : context -> ipaddr list
 (** [get_routers ctx] returns the list of gateways known to [ctx]. *)
+
+module Allocate : sig
+  val frame : mac:Macaddr.t -> hlim:Cstruct.uint8 -> src:ipaddr -> dst:ipaddr -> proto: Cstruct.uint8 -> (buffer * int)
+  (** [frame mac hlim src dst proto[ returns a pair [buf, len] where [buf] is a new ethernet frame containing an ipv6 header of length [len], with the specified [mac], [hlim], [src], [dst], and [proto] populated. *)
+end
