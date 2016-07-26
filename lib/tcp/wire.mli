@@ -16,10 +16,10 @@
 
 module Make(Ip:V1_LWT.IP) : sig
   type id = {
-    dst_port: int;               (* Remote TCP port *)
-    dst: Ip.ipaddr;         (* Remote IP address *)
-    src_port: int;              (* Local TCP port *)
-    src: Ip.ipaddr;        (* Local IP address *)
+    remote_port: int;             (* Remote TCP port *)
+    remote_address: Ip.ipaddr;    (* Remote IP address *)
+    local_port: int;              (* Local TCP port *)
+    local_address: Ip.ipaddr;     (* Local IP address *)
   }
 
   val pp_id : Format.formatter -> id -> unit

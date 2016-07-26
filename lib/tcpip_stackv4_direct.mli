@@ -38,7 +38,9 @@ module Make
      and type tcp   = Tcpv4.t
      and module TCP = Tcpv4
      and module UDP = Udpv4
-  val connect : (netif, mode) V1_LWT.stackv4_config ->
+  val connect :
+    ?on_flow_arrival:tcp_on_flow_arrival_callback ->
+    (netif, mode) V1_LWT.stackv4_config ->
     Ethif.t -> Arpv4.t -> Ipv4.t -> Icmpv4.t -> Udpv4.t -> Tcpv4.t ->
     [> `Ok of t | `Error of error ] Lwt.t
 end

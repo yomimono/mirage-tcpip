@@ -21,18 +21,20 @@ let count_tcp_to_ip = MProf.Counter.make ~name:"tcp-to-ip"
 
 module Make (Ip:V1_LWT.IP) = struct
   type id = {
-    dst_port: int;             (* Remote TCP port *)
-    dst: Ip.ipaddr;            (* Remote IP address *)
-    src_port: int;             (* Local TCP port *)
-    src: Ip.ipaddr;            (* Local IP address *)
+    remote_port: int;             (* Remote TCP port *)
+    remote_address: Ip.ipaddr;    (* Remote IP address *)
+    local_port: int;              (* Local TCP port *)
+    local_address: Ip.ipaddr;     (* Local IP address *)
   }
 
   let pp_id fmt id =
     let uip = Ip.to_uipaddr in
     Format.fprintf fmt "remote %a,%d to local %a, %d"
-      Ipaddr.pp_hum (uip id.dst) id.dst_port Ipaddr.pp_hum (uip id.src) id.src_port
+      Ipaddr.pp_hum (uip id.remote_address) id.remote_port
+      Ipaddr.pp_hum (uip id.local_address) id.local_port
 
-  let xmit ~ip ~id:{ src_port; dst_port; dst; _ } ?(rst=false) ?(syn=false) ?(fin=false) ?(psh=false)
+  let xmit ~ip ~id:{ local_port; remote_port; remote_address; _ }
+      ?(rst=false) ?(syn=false) ?(fin=false) ?(psh=false)
       ~rx_ack ~seq ~window ~options payload =
     let (ack, ack_number) = match rx_ack with
       | None -> (false, Sequence.zero)
@@ -42,13 +44,13 @@ module Make (Ip:V1_LWT.IP) = struct
         sequence = seq; Tcp_packet.ack_number; window;
         urg = false; ack; psh; rst; syn; fin;
         options;
-        src_port; dst_port;
+        src_port = local_port; dst_port = remote_port;
       } in
     (* Make a TCP/IP header frame *)
-    let frame, header_len = Ip.allocate_frame ip ~dst ~proto:`TCP in
+    let frame, header_len = Ip.allocate_frame ip ~dst:remote_address ~proto:`TCP in
     (* Shift this out by the combined ethernet + IP header sizes *)
     let tcp_buf = Cstruct.shift frame header_len in
-    let pseudoheader = Ip.pseudoheader ip ~dst ~proto:`TCP
+    let pseudoheader = Ip.pseudoheader ip ~dst:remote_address ~proto:`TCP
       (Tcp_wire.sizeof_tcp + Options.lenv options + Cstruct.len payload) in
     match Tcp_packet.Marshal.into_cstruct header tcp_buf ~pseudoheader ~payload with
     | Result.Error s ->

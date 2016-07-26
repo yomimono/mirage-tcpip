@@ -419,7 +419,9 @@ struct
 
   let process_syn t id ~on_flow_arrival ~tx_wnd ~ack_number ~sequence ~options ~syn ~fin =
     Logs.(log_with_stats Debug "process-syn" t);
-    on_flow_arrival ~src:(id.WIRE.src, id.WIRE.src_port) ~dst:(id.WIRE.dst, id.WIRE.dst_port)
+    (* the packet came in for us, so the src is the remote addr *)
+    on_flow_arrival ~src:(id.WIRE.remote_address, id.WIRE.remote_port)
+                    ~dst:(id.WIRE.local_address, id.WIRE.local_port)
     >>= function
     | `Accept pushf ->
       let tx_isn = Sequence.of_int ((Random.int 65535) + 0x1AFE0000) in
@@ -485,12 +487,13 @@ struct
     | Result.Error s -> Log.debug (fun f -> f "parsing TCP header failed: %s" s);
       Lwt.return_unit
     | Result.Ok (pkt, payload) ->
+      (* packet was addressed to us, so local things are the destinations *)
       let id = {
-        WIRE.src = dst;
-        dst = src;
-        src_port = pkt.dst_port;
-        dst_port = pkt.src_port;
-        } in
+        WIRE.local_address = dst;
+        local_port = pkt.src_port;
+        remote_address = src;
+        remote_port = pkt.dst_port;
+      } in
       (* Lookup connection from the active PCB hash *)
       with_hashtbl t.channels id
         (* PCB exists, so continue the connection state machine in tcp_input *)
@@ -554,7 +557,7 @@ struct
   (* Close - no more will be written *)
   let close pcb = Tx.close pcb
 
-  let dst pcb = WIRE.(pcb.id.dst, pcb.id.dst_port)
+  let dst pcb = WIRE.(pcb.id.remote_address, pcb.id.remote_port)
 
   let getid t dst dst_port =
     let open WIRE in
@@ -568,16 +571,16 @@ struct
       Hashtbl.mem t.listens id
     in
     let inuse t id =
-      islistener t id.src_port || idinuse t id in
+      islistener t id.local_port || idinuse t id in
     let rec bumpport t =
       (match t.localport with
        | 65535 -> t.localport <- 10000
        | _ -> t.localport <- t.localport + 1);
       let id = {
-          src = (Ip.src t.ip ~dst);
-          src_port = t.localport;
-          dst = dst;
-          dst_port = dst_port;
+          local_address = (Ip.src t.ip ~dst);
+          local_port = t.localport;
+          remote_address = dst;
+          remote_port = dst_port;
       } in
       if inuse t id then bumpport t else id
     in

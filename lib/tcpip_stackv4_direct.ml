@@ -81,17 +81,37 @@ struct
   let tcp { tcp; _ } = tcp
   let udp { udp; _ } = udp
 
+  let pp_netconfig fmt t =
+    let ips = Ipv4.get_ip t.ipv4 in
+    let netmasks = Ipv4.get_ip_netmasks t.ipv4 in
+    let gateways = Ipv4.get_ip_gateways t.ipv4 in
+    let ip_print_list fmt l = Format.pp_print_list Ipaddr.V4.pp_hum fmt l in
+    Format.fprintf fmt "ips: %a, netmasks %a, gateways %a"
+      ip_print_list ips ip_print_list netmasks ip_print_list gateways
+
+  let pp fmt t =
+    Format.fprintf fmt "tcpip direct stack: interface %s, network %a"
+    (Macaddr.to_string (Ethif.mac t.ethif)) pp_netconfig t
+
+  let pp_pair fmt (ipaddr, int) = Format.fprintf fmt "%a,%d" Ipaddr.V4.pp_hum ipaddr int
+
   let err_invalid_port p = Printf.sprintf "invalid port number (%d)" p
 
   let listen_udp t ~port callback =
     if port < 0 || port > 65535
     then raise (Invalid_argument (err_invalid_port port))
-    else Hashtbl.replace t.udp_listeners port callback
+    else begin
+      Log.debug (fun f -> f "establishing listener on %a for UDP port %d" pp t port);
+      Hashtbl.replace t.udp_listeners port callback
+    end
 
   let listen_tcp t ~port callback =
     if port < 0 || port > 65535
     then raise (Invalid_argument (err_invalid_port port))
-    else Hashtbl.replace t.tcp_listeners port callback
+    else begin
+      Log.debug (fun f -> f "establishing listener on %a for TCP port %d" pp t port);
+      Hashtbl.replace t.tcp_listeners port callback
+    end
 
   let listen_tcp_flow t ~on_flow_arrival =
     (* Wrap the callback to check the registered listeners first, treating
@@ -169,7 +189,7 @@ struct
         ~ipv6:(fun _ -> Lwt.return_unit)
         t.ethif)
 
-  let connect id ethif arpv4 ipv4 icmpv4 udp tcp =
+  let connect ?on_flow_arrival id ethif arpv4 ipv4 icmpv4 udp tcp =
     let { V1_LWT.interface = netif; mode; _ } = id in
     Log.info (fun f -> f "Manager: connect");
     let udp_listeners = Hashtbl.create 7 in
@@ -178,7 +198,12 @@ struct
      * we should only do something else when our rules specify that the
      * traffic should be forwarded on to either a port mapping or an
      * existing connection. *)
-    let tcp_on_flow_arrival ~src:_ ~dst:_ = Lwt.return `Reject in
+    let tcp_on_flow_arrival = match on_flow_arrival with
+    | None -> (fun ~src ~dst ->
+                    Log.debug (fun f -> f "Traffic from %a to %a dropped" pp_pair src pp_pair dst);
+                    Lwt.return `Reject)
+    | Some fn -> fn
+    in
     let t = { id; mode; netif; ethif; arpv4; ipv4; icmpv4; tcp; udp;
               udp_listeners; tcp_listeners; tcp_on_flow_arrival } in
     Log.info (fun f -> f "Manager: configuring");
