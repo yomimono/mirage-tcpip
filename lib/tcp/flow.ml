@@ -55,7 +55,7 @@ module Make(IP:V1_LWT.IP)(TM:V1_LWT.TIME)(C:V1.CLOCK)(R:V1.RANDOM) = struct
 
   let err_refused daddr dport =
     Log.debug (fun fmt ->
-        fmt "Refused connection to %a:%d\n%!"
+        fmt "Attempted connection to %a:%d was refused\n%!"
           Ipaddr.pp_hum (IP.to_uipaddr daddr) dport);
     Lwt.return (`Error `Refused)
 
