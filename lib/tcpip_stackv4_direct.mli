@@ -34,12 +34,10 @@ module Make
   include V1_LWT.STACKV4
     with type netif   = Netif.t
      and type mode    = V1_LWT.direct_stack_config
-     and type udpv4   = Udpv4.t
-     and type tcpv4   = Tcpv4.t
-     and type ipv4    = Ipv4.t
-     and module IPV4 = Ipv4
-     and module TCPV4 = Tcpv4
-     and module UDPV4 = Udpv4
+     and type udp   = Udpv4.t
+     and type tcp   = Tcpv4.t
+     and module TCP = Tcpv4
+     and module UDP = Udpv4
   val connect : (netif, mode) V1_LWT.stackv4_config ->
     Ethif.t -> Arpv4.t -> Ipv4.t -> Icmpv4.t -> Udpv4.t -> Tcpv4.t ->
     [> `Ok of t | `Error of error ] Lwt.t

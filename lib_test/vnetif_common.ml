@@ -58,7 +58,7 @@ module VNETIF_STACK ( B : Vnetif_backends.Backend) : (VNETIF_STACK with type bac
   module U = Udp.Make(Ip)
   module T = Tcp.Flow.Make(Ip)(Time)(Clock)(Random)
   module Stackv4 =
-    Tcpip_stack_direct.Make(Time)(Random)(V)(E)(A)(Ip)(Icmp)(U)(T)
+    Tcpip_stackv4_direct.Make(Time)(Random)(V)(E)(A)(Ip)(Icmp)(U)(T)
 
   let create_backend () =
     B.create ()

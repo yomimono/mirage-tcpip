@@ -166,12 +166,12 @@ let fail_result_not_expected fail = function
 
 (* Common sut: able to connect, connection not reset, no data received *)
 let sut_connects_and_remains_connected stack fail_callback =
-  let conn = VNETIF_STACK.Stackv4.TCPV4.create_connection (VNETIF_STACK.Stackv4.tcpv4 stack) in
+  let conn = VNETIF_STACK.Stackv4.TCP.create_connection (VNETIF_STACK.Stackv4.tcp stack) in
   or_error "connect" conn (server_ip, 80) >>= fun flow ->
   (* We must remain blocked on read, connection shouldn't be terminated.
    * If after half second that remains true, assume test succeeds *)
   Lwt.pick [
-    (VNETIF_STACK.Stackv4.TCPV4.read flow >>= fail_result_not_expected fail_callback);
+    (VNETIF_STACK.Stackv4.TCP.read flow >>= fail_result_not_expected fail_callback);
     Time.sleep 0.5 ]
 
 
@@ -216,7 +216,7 @@ let connection_refused_scenario =
       ) else
         Lwt.return (Fsm_error "Expected initial syn request") in
   let sut stack _fail =
-    let conn = VNETIF_STACK.Stackv4.TCPV4.create_connection (VNETIF_STACK.Stackv4.tcpv4 stack) in
+    let conn = VNETIF_STACK.Stackv4.TCP.create_connection (VNETIF_STACK.Stackv4.tcp stack) in
     (* connection must be rejected *)
     expect_error `Refused "connect" conn (server_ip, 80) in 
   (`WAIT_FOR_SYN, fsm), sut
@@ -276,9 +276,9 @@ let rst_on_established_scenario =
         Lwt.return (Fsm_error "Expected final ack of three step dance") in
 
   let sut stack fail_callback =
-    let conn = VNETIF_STACK.Stackv4.TCPV4.create_connection (VNETIF_STACK.Stackv4.tcpv4 stack) in
+    let conn = VNETIF_STACK.Stackv4.TCP.create_connection (VNETIF_STACK.Stackv4.tcp stack) in
     or_error "connect" conn (server_ip, 80) >>= fun flow ->
-    VNETIF_STACK.Stackv4.TCPV4.read flow >>= function
+    VNETIF_STACK.Stackv4.TCP.read flow >>= function
     | `Eof ->
       (* This is the expected when the other end resets *)
       Lwt.return_unit
@@ -380,10 +380,10 @@ let data_repeated_ack_scenario =
         Lwt.return (Fsm_error "Ack for data expected") in
 
   let sut stack fail_callback =
-    let conn = VNETIF_STACK.Stackv4.TCPV4.create_connection (VNETIF_STACK.Stackv4.tcpv4 stack) in
+    let conn = VNETIF_STACK.Stackv4.TCP.create_connection (VNETIF_STACK.Stackv4.tcp stack) in
     or_error "connect" conn (server_ip, 80) >>= fun flow ->
     (* We should receive the data *)
-    VNETIF_STACK.Stackv4.TCPV4.read flow >>= function
+    VNETIF_STACK.Stackv4.TCP.read flow >>= function
     | `Ok _ -> Lwt.return_unit
     | other -> fail_result_not_expected fail_callback other in
   (`WAIT_FOR_SYN, fsm), sut

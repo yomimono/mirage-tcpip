@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: ee9e0afe6c3da9e5e1b0fb75472342f7)
+# DO NOT EDIT (digest: 7a3446d1d7c812bd4316e8e37e3f82fd)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -142,8 +142,8 @@ true: annot, bin_annot
 <lib/dhcp/*.ml{,i,y}>: pkg_rresult
 <lib/dhcp/*.ml{,i,y}>: use_tcpip
 <lib/dhcp/*.ml{,i,y}>: use_udp
-# Library tcpip-stack-direct
-"lib/tcpip-stack-direct.cmxs": use_tcpip-stack-direct
+# Library tcpip-stackv4-direct
+"lib/tcpip-stackv4-direct.cmxs": use_tcpip-stackv4-direct
 <lib/*.ml{,i,y}>: pkg_cstruct
 <lib/*.ml{,i,y}>: pkg_cstruct.ppx
 <lib/*.ml{,i,y}>: pkg_io-page
@@ -215,8 +215,8 @@ true: annot, bin_annot
 <lib_test/test.{native,byte}>: use_ipv4
 <lib_test/test.{native,byte}>: use_tcp
 <lib_test/test.{native,byte}>: use_tcpip
-<lib_test/test.{native,byte}>: use_tcpip-stack-direct
 <lib_test/test.{native,byte}>: use_tcpip-stack-socket
+<lib_test/test.{native,byte}>: use_tcpip-stackv4-direct
 <lib_test/test.{native,byte}>: use_tcpv4-socket
 <lib_test/test.{native,byte}>: use_udp
 <lib_test/test.{native,byte}>: use_udpv4-socket
@@ -249,8 +249,8 @@ true: annot, bin_annot
 <lib_test/*.ml{,i,y}>: use_ipv4
 <lib_test/*.ml{,i,y}>: use_tcp
 <lib_test/*.ml{,i,y}>: use_tcpip
-<lib_test/*.ml{,i,y}>: use_tcpip-stack-direct
 <lib_test/*.ml{,i,y}>: use_tcpip-stack-socket
+<lib_test/*.ml{,i,y}>: use_tcpip-stackv4-direct
 <lib_test/*.ml{,i,y}>: use_tcpv4-socket
 <lib_test/*.ml{,i,y}>: use_udp
 <lib_test/*.ml{,i,y}>: use_udpv4-socket

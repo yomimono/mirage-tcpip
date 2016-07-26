@@ -40,36 +40,34 @@ type id = (netif, mode) config
 type buffer = Cstruct.t
 type ipv4addr = Ipaddr.V4.t
 
-module TCPV4 = Tcpv4_socket
-module UDPV4 = Udpv4_socket
-module IPV4  = Ipv4_socket
+module TCP = Tcpv4_socket
+module UDP = Udpv4_socket
 
-type udpv4 = Udpv4_socket.t
-type tcpv4 = Tcpv4_socket.t
-type ipv4  = Ipaddr.V4.t option
+type udp = Udpv4_socket.t
+type tcp = Tcpv4_socket.t
+type ipaddr  = Ipaddr.V4.t
 
 type t = {
   id    : id;
-  udpv4 : Udpv4.t;
-  tcpv4 : Tcpv4.t;
-  udpv4_listeners: (int, Udpv4.callback) Hashtbl.t;
-  tcpv4_listeners: (int, (Tcpv4.flow -> unit Lwt.t)) Hashtbl.t;
+  udp : Udpv4.t;
+  tcp : Tcpv4.t;
+  udp_listeners: (int, Udpv4.callback) Hashtbl.t;
+  tcp_listeners: (int, (Tcpv4.flow -> unit Lwt.t)) Hashtbl.t;
 }
 
 type error = [
     `Unknown of string
 ]
 
-type tcpv4_action = [
+type tcp_action = [
   | `Reject
   | `Accept of Tcpv4.flow -> unit Lwt.t
 ]
 
-type tcpv4_on_flow_arrival_callback = src:(ipv4addr * int) -> dst:(ipv4addr * int) -> tcpv4_action io
+type tcp_on_flow_arrival_callback = src:(ipv4addr * int) -> dst:(ipv4addr * int) -> tcp_action io
 
-let udpv4 { udpv4; _ } = udpv4
-let tcpv4 { tcpv4; _ } = tcpv4
-let ipv4 _ = None
+let udp { udp; _ } = udp
+let tcp { tcp; _ } = tcp
 
 (* List of IP addresses to bind to *)
 let configure _t addrs =
@@ -84,11 +82,11 @@ let configure _t addrs =
 
 let err_invalid_port p = Printf.sprintf "invalid port number (%d)" p
 
-let listen_udpv4 t ~port callback =
+let listen_udp t ~port callback =
   if port < 0 || port > 65535 then
     raise (Invalid_argument (err_invalid_port port))
   else
-    let fd = Udpv4.get_udpv4_listening_fd t.udpv4 port in
+    let fd = Udpv4.get_udpv4_listening_fd t.udp port in
     let buf = Cstruct.create 4096 in
     let rec loop () =
       let continue () =
@@ -109,14 +107,15 @@ let listen_udpv4 t ~port callback =
     (* FIXME: we should not ignore the result *)
     Lwt.ignore_result (loop ())
 
-let listen_tcpv4 _t ~port callback =
+let listen_tcp _t ~port callback =
   if port < 0 || port > 65535 then
     raise (Invalid_argument (err_invalid_port port))
   else
     let open Lwt_unix in
     let fd = socket PF_INET SOCK_STREAM 0 in
     setsockopt fd SO_REUSEADDR true;
-    let interface = Ipaddr_unix.V4.to_inet_addr Ipaddr.V4.any in (* TODO *)
+    (* TODO: we should attempt to bind the interface relevant to the adddress set in [t] *)
+    let interface = Ipaddr_unix.V4.to_inet_addr Ipaddr.V4.any in
     bind fd (ADDR_INET (interface, port));
     listen fd 10;
     let rec loop () =
@@ -137,19 +136,19 @@ let listen_tcpv4 _t ~port callback =
     (* FIXME: we should not ignore the result *)
     Lwt.ignore_result (loop ())
 
-let listen_tcpv4_flow _t ~on_flow_arrival:_ =
+let listen_tcp_flow _t ~on_flow_arrival:_ =
     failwith "there is no socket api for on_flow_arrival"
 
 let listen _t =
   let t, _ = Lwt.task () in
   t (* TODO cancellation *)
 
-let connect id udpv4 tcpv4 =
+let connect id udp tcp =
   let { V1_LWT.interface; _ } = id in
   Log.info (fun f -> f "Manager: connect");
-  let udpv4_listeners = Hashtbl.create 7 in
-  let tcpv4_listeners = Hashtbl.create 7 in
-  let t = { id; tcpv4; udpv4; udpv4_listeners; tcpv4_listeners } in
+  let udp_listeners = Hashtbl.create 7 in
+  let tcp_listeners = Hashtbl.create 7 in
+  let t = { id; tcp; udp; udp_listeners; tcp_listeners } in
   Log.info (fun f -> f "Manager: configuring");
   configure t interface
   >>= fun () ->

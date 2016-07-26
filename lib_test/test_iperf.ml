@@ -67,26 +67,26 @@ module Test_iperf (B : Vnetif_backends.Backend) = struct
   let err_eof () = fail "EOF while writing to TCP flow"
 
   let err_connect e ip port () =
-    let err = V.Stackv4.TCPV4.error_message e in
+    let err = V.Stackv4.TCP.error_message e in
     let ip  = Ipaddr.V4.to_string ip in
     fail "Unable to connect to %s:%d: %s" ip port err
 
   let err_write e () =
-    let err = V.Stackv4.TCPV4.error_message e in
+    let err = V.Stackv4.TCP.error_message e in
     fail "Error while writing to TCP flow: %s" err
 
   let err_read e () =
-    let err = V.Stackv4.TCPV4.error_message e in
+    let err = V.Stackv4.TCP.error_message e in
     fail "Error in server while reading: %s" err
 
   let write_and_check flow buf =
-    V.Stackv4.TCPV4.write flow buf >>= function
+    V.Stackv4.TCP.write flow buf >>= function
     | `Ok ()   -> Lwt.return_unit
-    | `Eof     -> V.Stackv4.TCPV4.close flow >>= err_eof
-    | `Error e -> V.Stackv4.TCPV4.close flow >>= err_write e
+    | `Eof     -> V.Stackv4.TCP.close flow >>= err_eof
+    | `Error e -> V.Stackv4.TCP.close flow >>= err_write e
 
   let tcp_connect t (ip, port) =
-    V.Stackv4.TCPV4.create_connection t (ip, port) >>= function
+    V.Stackv4.TCP.create_connection t (ip, port) >>= function
     | `Error e -> err_connect e ip port ()
     | `Ok f    -> Lwt.return f
 
@@ -102,10 +102,10 @@ module Test_iperf (B : Vnetif_backends.Backend) = struct
       loop (amt / mlen) >>= fun () ->
       let a = Cstruct.sub a 0 (amt - (mlen * (amt/mlen))) in
       write_and_check flow a >>= fun () ->
-      V.Stackv4.TCPV4.close flow
+      V.Stackv4.TCP.close flow
     in
     Logs.info (fun f -> f  "Iperf client: Attempting connection.");
-    tcp_connect (V.Stackv4.tcpv4 s) (dest_ip, dport) >>= fun flow ->
+    tcp_connect (V.Stackv4.tcp s) (dest_ip, dport) >>= fun flow ->
     iperftx flow >>= fun () ->
     Logs.debug (fun f -> f  "Iperf client: Done.");
     Lwt.return_unit
@@ -133,7 +133,7 @@ module Test_iperf (B : Vnetif_backends.Backend) = struct
       last_time = t0
     } in
     let rec iperf_h flow =
-      V.Stackv4.TCPV4.read flow >>= fun f ->
+      V.Stackv4.TCP.read flow >>= fun f ->
       match f with
       | `Error e -> err_read e ()
       | `Eof ->
@@ -142,7 +142,7 @@ module Test_iperf (B : Vnetif_backends.Backend) = struct
         st.bin_packets <- st.packets;
         st.last_time <- st.start_time;
         print_data st ts_now >>= fun () ->
-        V.Stackv4.TCPV4.close flow >>= fun () ->
+        V.Stackv4.TCP.close flow >>= fun () ->
         Logs.info (fun f -> f  "Iperf server: Done - closed connection.");
         Lwt.return_unit
       | `Ok data ->
@@ -186,7 +186,7 @@ module Test_iperf (B : Vnetif_backends.Backend) = struct
       (Logs.info (fun f -> f  "I am server with IP %s, expecting connections on port %d"
          (Ipaddr.V4.to_string server_ip) port);
        V.create_stack backend server_ip netmask [gw] >>= fun server_s ->
-       V.Stackv4.listen_tcpv4 server_s ~port (iperf server_s server_done_u);
+       V.Stackv4.listen_tcp server_s ~port (iperf server_s server_done_u);
        Lwt.wakeup server_ready_u ();
        V.Stackv4.listen server_s) ] >>= fun () ->
 

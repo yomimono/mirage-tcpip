@@ -44,22 +44,20 @@ struct
   type mode = V1_LWT.direct_stack_config
   type id = (netif, mode) config
   type buffer = Cstruct.t
-  type ipv4addr = Ipaddr.V4.t
-  type tcpv4 = Tcpv4.t
-  type udpv4 = Udpv4.t
-  type ipv4 = Ipv4.t
+  type tcp = Tcpv4.t
+  type udp = Udpv4.t
+  type ipaddr = Ipaddr.V4.t
 
-  module UDPV4 = Udpv4
-  module TCPV4 = Tcpv4
-  module IPV4  = Ipv4
-  module Dhcp = Dhcp_clientv4.Make(Time)(Random)(Udpv4)
+  module UDP = Udpv4
+  module TCP = Tcpv4
+  module Dhcp  = Dhcp_clientv4.Make(Time)(Random)(Udpv4)
 
-  type tcpv4_action = [
+  type tcp_action = [
     | `Reject
     | `Accept of (Tcpv4.flow -> unit Lwt.t)
   ]
 
-  type tcpv4_on_flow_arrival_callback = src:(ipv4addr * int) -> dst:(ipv4addr * int) -> tcpv4_action Lwt.t
+  type tcp_on_flow_arrival_callback = src:(ipaddr * int) -> dst:(ipaddr * int) -> tcp_action Lwt.t
 
   type t = {
     id    : id;
@@ -69,40 +67,39 @@ struct
     arpv4 : Arpv4.t;
     ipv4  : Ipv4.t;
     icmpv4: Icmpv4.t;
-    udpv4 : Udpv4.t;
-    tcpv4 : Tcpv4.t;
-    udpv4_listeners: (int, Udpv4.callback) Hashtbl.t;
-    tcpv4_listeners: (int, (Tcpv4.flow -> unit Lwt.t)) Hashtbl.t;
-    mutable tcpv4_on_flow_arrival: tcpv4_on_flow_arrival_callback;
+    udp : Udpv4.t;
+    tcp : Tcpv4.t;
+    udp_listeners: (int, Udpv4.callback) Hashtbl.t;
+    tcp_listeners: (int, (Tcpv4.flow -> unit Lwt.t)) Hashtbl.t;
+    mutable tcp_on_flow_arrival: tcp_on_flow_arrival_callback;
   }
 
   type error = [
       `Unknown of string
   ]
 
-  let tcpv4 { tcpv4; _ } = tcpv4
-  let udpv4 { udpv4; _ } = udpv4
-  let ipv4 { ipv4; _ } = ipv4
+  let tcp { tcp; _ } = tcp
+  let udp { udp; _ } = udp
 
   let err_invalid_port p = Printf.sprintf "invalid port number (%d)" p
 
-  let listen_udpv4 t ~port callback =
+  let listen_udp t ~port callback =
     if port < 0 || port > 65535
     then raise (Invalid_argument (err_invalid_port port))
-    else Hashtbl.replace t.udpv4_listeners port callback
+    else Hashtbl.replace t.udp_listeners port callback
 
-  let listen_tcpv4 t ~port callback =
+  let listen_tcp t ~port callback =
     if port < 0 || port > 65535
     then raise (Invalid_argument (err_invalid_port port))
-    else Hashtbl.replace t.tcpv4_listeners port callback
+    else Hashtbl.replace t.tcp_listeners port callback
 
-  let listen_tcpv4_flow t ~on_flow_arrival =
+  let listen_tcp_flow t ~on_flow_arrival =
     (* Wrap the callback to check the registered listeners first, treating
        the [on_flow_arrival] callback as a default *)
-    t.tcpv4_on_flow_arrival <-
+    t.tcp_on_flow_arrival <-
       (fun ~src ~dst:(ip, port) ->
-        (if Hashtbl.mem t.tcpv4_listeners port
-         then Lwt.return (`Accept (Hashtbl.find t.tcpv4_listeners port))
+        (if Hashtbl.mem t.tcp_listeners port
+         then Lwt.return (`Accept (Hashtbl.find t.tcp_listeners port))
          else on_flow_arrival ~src ~dst:(ip, port)))
 
   let pp_opt pp f = function
@@ -129,8 +126,8 @@ struct
     | `DHCP -> begin
         (* TODO: spawn a background thread to reconfigure the interface
            when future offers are received. *)
-        let dhcp, offers = Dhcp.create (Ethif.mac t.ethif) t.udpv4 in
-        listen_udpv4 t ~port:68 (Dhcp.input dhcp);
+        let dhcp, offers = Dhcp.create (Ethif.mac t.ethif) t.udp in
+        listen_udp t ~port:68 (Dhcp.input dhcp);
         (* TODO: stop listening to this port when done with DHCP. *)
         Lwt_stream.get offers >>= function
         | None -> Log.info (fun f -> f "No DHCP offer received"); Lwt.return ()
@@ -147,23 +144,23 @@ struct
       >>= fun () ->
       Ipv4.set_ip_gateways t.ipv4 gateways
 
-  let udpv4_listeners t ~dst_port =
-    try Some (Hashtbl.find t.udpv4_listeners dst_port)
+  let udp_listeners t ~dst_port =
+    try Some (Hashtbl.find t.udp_listeners dst_port)
     with Not_found -> None
 
   let listen t =
     (* NB: this function will be called more than once, including at initialisation
        time. Be careful not to capture the state of `t` before the program can
-       customise it, see `tcpv4_on_flow_arrival` below. *)
+       customise it, see `tcp_on_flow_arrival` below. *)
     Netif.listen t.netif (
       Ethif.input
         ~arpv4:(Arpv4.input t.arpv4)
         ~ipv4:(
           Ipv4.input
-            ~tcp:(Tcpv4.input_flow t.tcpv4
-                    ~on_flow_arrival:(fun ~src ~dst -> t.tcpv4_on_flow_arrival ~src ~dst))
-            ~udp:(Udpv4.input t.udpv4
-                    ~listeners:(udpv4_listeners t))
+            ~tcp:(Tcpv4.input_flow t.tcp
+                    ~on_flow_arrival:(fun ~src ~dst -> t.tcp_on_flow_arrival ~src ~dst))
+            ~udp:(Udpv4.input t.udp
+                    ~listeners:(udp_listeners t))
             ~default:(fun ~proto ~src ~dst buf -> 
                 match proto with
                 | 1 -> Icmpv4.input t.icmpv4 ~src ~dst buf
@@ -172,18 +169,18 @@ struct
         ~ipv6:(fun _ -> Lwt.return_unit)
         t.ethif)
 
-  let connect id ethif arpv4 ipv4 icmpv4 udpv4 tcpv4 =
+  let connect id ethif arpv4 ipv4 icmpv4 udp tcp =
     let { V1_LWT.interface = netif; mode; _ } = id in
     Log.info (fun f -> f "Manager: connect");
-    let udpv4_listeners = Hashtbl.create 7 in
-    let tcpv4_listeners = Hashtbl.create 7 in
+    let udp_listeners = Hashtbl.create 7 in
+    let tcp_listeners = Hashtbl.create 7 in
     (* the default behavior for an incoming flow should be rejection --
      * we should only do something else when our rules specify that the
      * traffic should be forwarded on to either a port mapping or an
      * existing connection. *)
-    let tcpv4_on_flow_arrival ~src:_ ~dst:_ = Lwt.return `Reject in
-    let t = { id; mode; netif; ethif; arpv4; ipv4; icmpv4; tcpv4; udpv4;
-              udpv4_listeners; tcpv4_listeners; tcpv4_on_flow_arrival } in
+    let tcp_on_flow_arrival ~src:_ ~dst:_ = Lwt.return `Reject in
+    let t = { id; mode; netif; ethif; arpv4; ipv4; icmpv4; tcp; udp;
+              udp_listeners; tcp_listeners; tcp_on_flow_arrival } in
     Log.info (fun f -> f "Manager: configuring");
     let _ = listen t in
     configure t t.mode

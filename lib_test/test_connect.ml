@@ -36,17 +36,17 @@ module Test_connect (B : Vnetif_backends.Backend) = struct
   let err_write_eof () = fail "client tried to write, got EOF"
 
   let err_read e =
-    let err = V.Stackv4.TCPV4.error_message e in
+    let err = V.Stackv4.TCP.error_message e in
     fail "Error while reading: %s" err
 
   let err_write e =
-    let err = V.Stackv4.TCPV4.error_message e in
+    let err = V.Stackv4.TCP.error_message e in
     fail "client tried to write, got %s" err
 
   let accept flow expected =
-    let ip, port = V.Stackv4.TCPV4.dst flow in
+    let ip, port = V.Stackv4.TCP.dst flow in
     Logs.debug (fun f -> f "Accepted connection from %s:%d" (Ipaddr.V4.to_string ip) port);
-    V.Stackv4.TCPV4.read flow >>= function
+    V.Stackv4.TCP.read flow >>= function
     | `Eof     -> err_read_eof ()
     | `Error e -> err_read e
     | `Ok b    ->
@@ -63,20 +63,20 @@ module Test_connect (B : Vnetif_backends.Backend) = struct
        fail "connect test timedout after %f seconds" timeout) ;
 
       (V.create_stack backend server_ip netmask [gw] >>= fun s1 ->
-       V.Stackv4.listen_tcpv4 s1 ~port:80 (fun f -> accept f test_string);
+       V.Stackv4.listen_tcp s1 ~port:80 (fun f -> accept f test_string);
        V.Stackv4.listen s1) ;
 
       (Lwt_unix.sleep 0.1 >>= fun () ->
        V.create_stack backend client_ip netmask [gw] >>= fun s2 ->
-       let conn = V.Stackv4.TCPV4.create_connection (V.Stackv4.tcpv4 s2) in
+       let conn = V.Stackv4.TCP.create_connection (V.Stackv4.tcp s2) in
        or_error "connect" conn (server_ip, 80) >>= fun flow ->
        Logs.debug (fun f -> f "Connected to other end...");
-       V.Stackv4.TCPV4.write flow (Cstruct.of_string test_string) >>= function
+       V.Stackv4.TCP.write flow (Cstruct.of_string test_string) >>= function
        | `Error e -> err_write e
        | `Eof     -> err_write_eof ()
        | `Ok ()   ->
          Logs.debug (fun f -> f "wrote hello world");
-         V.Stackv4.TCPV4.close flow >>= fun () ->
+         V.Stackv4.TCP.close flow >>= fun () ->
          Lwt_unix.sleep 1.0 >>= fun () -> (* record some traffic after close *)
          Lwt.return_unit) ] >>= fun () ->
 

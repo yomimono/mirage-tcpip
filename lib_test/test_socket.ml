@@ -49,13 +49,13 @@ let two_connect_tcp () =
   make_stack ~name:"server" ~ip:localhost >>= fun server ->
   make_stack ~name:"client" ~ip:localhost >>= fun client ->
 
-  Stack.listen_tcpv4 server.stack ~port:server_port announce;
+  Stack.listen_tcp server.stack ~port:server_port announce;
   Lwt.pick [
     Stack.listen server.stack;
     or_fail_str ~str:"couldn't create connection from client to server for TCP socket test"
-      (Stack.TCPV4.create_connection client.tcp) (localhost, server_port) >>= fun flow ->
-    Stack.TCPV4.write flow (Cstruct.of_string "test!") >>= function
-    | `Ok () -> Stack.TCPV4.close flow
+      (Stack.TCP.create_connection client.tcp) (localhost, server_port) >>= fun flow ->
+    Stack.TCP.write flow (Cstruct.of_string "test!") >>= function
+    | `Ok () -> Stack.TCP.close flow
     | `Error _ -> Alcotest.fail "Error writing to socket for TCP test"
     | `Eof -> Alcotest.fail "premature EOF - client couldn't write to TCP socket"
   ]
