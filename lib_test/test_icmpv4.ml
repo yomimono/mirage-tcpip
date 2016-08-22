@@ -37,7 +37,7 @@ let testbind x y =
 let (>>=?) = testbind
 
 let slowly fn =
-  Time.sleep 0.1 >>= fun () -> fn >>= fun () -> Time.sleep 0.1
+  Time.sleep_ns (Duration.of_ms 100) >>= fun () -> fn >>= fun () -> Time.sleep_ns (Duration.of_ms 100)
 
 let get_stack ?(backend = B.create ~use_async_readers:true 
                   ~yield:(fun() -> Lwt_main.yield ()) ()) () =
@@ -86,13 +86,14 @@ let short_read () =
 let echo_request () =
   let seq_no = 0x01 in
   let id_no = 0x1234 in
+  let request_payload = Cstruct.of_string "plz reply i'm so lonely" in
   get_stack () >>= configure speaker_address >>= fun speaker ->
   get_stack ~backend:speaker.backend () >>= configure listener_address >>= fun listener ->
   inform_arp speaker listener_address (mac_of_stack listener);
   inform_arp listener speaker_address (mac_of_stack speaker);
   let req = Icmpv4_packet.({code = 0x00; ty = Icmpv4_wire.Echo_request;
                             subheader = Id_and_seq (id_no, seq_no)}) in
-  let echo_request = Icmpv4_packet.Marshal.make_cstruct req ~payload:Cstruct.(create 0) in
+  let echo_request = Icmpv4_packet.Marshal.make_cstruct req ~payload:request_payload in
   let check buf =
     let open Icmpv4_packet in
     Printf.printf "Incoming ICMP message: ";
@@ -106,9 +107,8 @@ let echo_request () =
       Alcotest.(check int) "icmp echo-reply code" 0x00 reply.code; (* should be code 0 *)
       Alcotest.(check int) "icmp echo-reply id" id_no id;
       Alcotest.(check int) "icmp echo-reply seq" seq_no seq;
-      match (Cstruct.len payload) with
-      | 0 -> Alcotest.fail "icmp echo-reply had a payload but request didn't"
-      | _ -> Lwt.return_unit
+      Alcotest.(check Common.cstruct) "icmp echo-reply payload" payload request_payload;
+      Lwt.return_unit
   in
   Lwt.pick [
     icmp_listen speaker (fun ~src:_ ~dst:_ -> check); (* should get reply back *)
@@ -199,9 +199,9 @@ let write_errors () =
     Lwt.pick [
       icmp_listen stack (fun ~src:_ ~dst:_ buf -> check_packet buf >>= fun () ->
                           V.disconnect stack.netif);
-      Time.sleep 0.5 >>= fun () ->
+      Time.sleep_ns (Duration.of_ms 500) >>= fun () ->
       Udp.write stack.udp ~dst ~src_port:1212 ~dst_port:123 payload >>= fun () ->
-      Time.sleep 1.0 >>= fun () ->
+      Time.sleep_ns (Duration.of_sec 1) >>= fun () ->
       Alcotest.fail "writing thread completed first";
     ]
   in
