@@ -39,7 +39,7 @@ module Make
 struct
 
   type +'a io = 'a Lwt.t
-  type ('a,'b) config = ('a,'b) V1_LWT.stackv4_config
+  type ('a,'b) config = ('a,'b) V1_LWT.stack_config
   type netif = Netif.t
   type mode = V1_LWT.direct_stack_config
   type id = (netif, mode) config

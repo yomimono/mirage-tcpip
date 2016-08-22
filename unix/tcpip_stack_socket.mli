@@ -14,12 +14,13 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *)
 
-include V1_LWT.STACKV4
-  with type netif   = Ipaddr.V4.t list
+include V1_LWT.STACK
+  with type netif   = Ipaddr.t list
+   and type ipaddr  = Ipaddr.t
    and type mode    = unit
-   and type tcp   = Tcpv4_socket.t
-   and type udp   = Udpv4_socket.t
-   and module UDP = Udpv4_socket
-   and module TCP = Tcpv4_socket
-val connect : (netif, mode) V1_LWT.stackv4_config ->
-  Udpv4_socket.t -> Tcpv4_socket.t -> [> `Ok of t | `Error of error ] Lwt.t
+   and type tcp   = Tcp_socket.t
+   and type udp   = Udp_socket.t
+   and module UDP = Udp_socket
+   and module TCP = Tcp_socket
+val connect : (netif, mode) V1_LWT.stack_config ->
+  Udp_socket.t -> Tcp_socket.t -> [> `Ok of t | `Error of error ] Lwt.t

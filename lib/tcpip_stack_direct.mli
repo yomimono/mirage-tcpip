@@ -31,16 +31,17 @@ module Make
     (Icmpv4  : V1_LWT.ICMPV4)
     (Udpv4   : UDPV4_DIRECT with type ip = Ipv4.t)
     (Tcpv4   : TCPV4_DIRECT with type ip = Ipv4.t) : sig
-  include V1_LWT.STACKV4
+  include V1_LWT.STACK
     with type netif   = Netif.t
      and type mode    = V1_LWT.direct_stack_config
+     and type ipaddr  = Ipaddr.V4.t
      and type udp   = Udpv4.t
      and type tcp   = Tcpv4.t
      and module TCP = Tcpv4
      and module UDP = Udpv4
   val connect :
     ?on_flow_arrival:tcp_on_flow_arrival_callback ->
-    (netif, mode) V1_LWT.stackv4_config ->
+    (netif, mode) V1_LWT.stack_config ->
     Ethif.t -> Arpv4.t -> Ipv4.t -> Icmpv4.t -> Udpv4.t -> Tcpv4.t ->
     [> `Ok of t | `Error of error ] Lwt.t
 end
