@@ -38,7 +38,9 @@ module Make(Ip:V1_LWT.IP)(Time:V1_LWT.TIME)(Clock:V1.MCLOCK)(Random:V1.RANDOM) :
 
   type on_flow_arrival_callback = src:(Ip.ipaddr * int) -> dst:(Ip.ipaddr * int) -> action Lwt.t
 
-  val input: t -> listeners:(int -> (pcb -> unit Lwt.t) option)
+  type listener_lookup = remote:(Ip.ipaddr * int) -> local:(Ip.ipaddr * int) -> (pcb -> unit Lwt.t) option
+
+  val input: t -> listeners:listener_lookup
     -> src:Ip.ipaddr -> dst:Ip.ipaddr -> Cstruct.t -> unit Lwt.t
 
   val input_flow: t -> on_flow_arrival:on_flow_arrival_callback

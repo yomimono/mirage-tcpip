@@ -502,9 +502,11 @@ struct
         (* No existing PCB, so check if it is a SYN for a listening function *)
         (input_no_pcb t on_flow_arrival (pkt, payload))
 
+  type listener_lookup = remote:(Ip.ipaddr * int) -> local:(Ip.ipaddr * int) -> (pcb -> unit Lwt.t) option
+
   let input t ~listeners ~src ~dst data =
-    input_flow t ~on_flow_arrival:(fun ~src:_ ~dst:(_, dst_port) ->
-      match listeners dst_port with
+    input_flow t ~on_flow_arrival:(fun ~src ~dst ->
+      match listeners ~remote:src ~local:dst with
       | None -> Lwt.return `Reject
       | Some flow_cb -> Lwt.return (`Accept flow_cb)
     ) ~src ~dst data
