@@ -140,22 +140,24 @@ struct
     with Not_found -> None
 
   let listen t =
-    Netif.listen t.netif (
-      Ethif.input
-        ~arpv4:(Arpv4.input t.arpv4)
-        ~ipv4:(
-          Ipv4.input
-            ~tcp:(Tcpv4.input t.tcpv4
-                    ~listeners:(tcpv4_listeners t))
-            ~udp:(Udpv4.input t.udpv4
-                    ~listeners:(udpv4_listeners t))
-            ~default:(fun ~proto ~src ~dst buf -> 
-                match proto with
-                | 1 -> Icmpv4.input t.icmpv4 ~src ~dst buf
-                | _ -> Lwt.return_unit)
-            t.ipv4)
-        ~ipv6:(fun _ -> Lwt.return_unit)
-        t.ethif)
+    let tcp = Tcpv4.input t.tcpv4 ~listeners:(tcpv4_listeners t) in
+    let udp = Udpv4.input t.udpv4 ~listeners:(udpv4_listeners t) in
+    let default ~proto ~src ~dst buf =
+      match proto with
+      | 1 -> Icmpv4.input t.icmpv4 ~src ~dst buf
+      | _ -> Lwt.return_unit
+    in
+    let ipv4_listener = Ipv4.input ~tcp ~udp ~default in
+    let ethif_listener = Ethif.input t.ethif ~listeners:(function
+        | 0x0806 -> Some (Arpv4.input t.arpv4)
+        | 0x0800 -> Some (ipv4_listener t.ipv4)
+        | _ -> None)
+    in
+    Netif.listen t.netif (fun buf ->
+        match ethif_listener buf with
+        | _, None -> Lwt.return_unit
+        | fn, Some payload -> fn payload
+    )
 
   let connect id ethif arpv4 ipv4 icmpv4 udpv4 tcpv4 =
     let { V1_LWT.interface = netif; mode; _ } = id in
