@@ -37,26 +37,26 @@ module Make(Netif : V1_LWT.NETWORK) = struct
     netif: Netif.t;
   }
 
+  type ethertype = Cstruct.uint16
+
+  type continuation = Cstruct.t -> unit Lwt.t
+
   let mac t = Netif.mac t.netif
 
-  let input ~arpv4 ~ipv4 ~ipv6 t frame =
+  let input t ~listeners frame =
     let open Ethif_packet in
     MProf.Trace.label "ethif.input";
     let of_interest dest =
       Macaddr.compare dest (mac t) = 0 || not (Macaddr.is_unicast dest)
     in
+    let drop = fun _ -> Lwt.return_unit in
     match Unmarshal.of_cstruct frame with
+    | Ok (header, payload) when (not @@ of_interest header.destination) -> drop, (Some payload)
+    | Error s -> Log.debug (fun f -> f "Dropping unparseable Ethernet frame: %s" s); drop, None
     | Ok (header, payload) when of_interest header.destination ->
-      begin
-        let open Ethif_wire in
-        match header.ethertype with
-        | ARP -> arpv4 payload
-        | IPv4 -> ipv4 payload
-        | IPv6 -> ipv6 payload
-      end
-    | Ok _ -> Lwt.return_unit
-    | Error s -> Log.debug (fun f -> f "Dropping Ethernet frame: %s" s);
-      Lwt.return_unit
+      match listeners @@ Ethif_wire.ethertype_to_int header.ethertype with
+      | None -> drop, (Some payload)
+      | Some processor -> processor, (Some payload)
 
   let write t frame =
     MProf.Trace.label "ethif.write";
