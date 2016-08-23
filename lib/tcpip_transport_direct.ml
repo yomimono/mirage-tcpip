@@ -1,5 +1,5 @@
 (*
- * Copyright (c) 2011-2014 Anil Madhavapeddy <anil@recoil.org>
+ * Copyright (c) 2016 Mindy Preston <mindy.preston@docker.com>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -16,61 +16,40 @@
 
 open Lwt.Infix
 
-let src = Logs.Src.create "tcpip-stack-direct" ~doc:"Pure OCaml TCP/IP stack"
+let src = Logs.Src.create "tcpip-transport-direct" ~doc:"Transport layer implementations in pure OCaml"
 module Log = (val Logs.src_log src : Logs.LOG)
-
-type direct_ipv4_input = src:Ipaddr.V4.t -> dst:Ipaddr.V4.t -> Cstruct.t -> unit Lwt.t
-module type UDPV4_DIRECT = V1_LWT.UDPV4
-  with type ipinput = direct_ipv4_input
-
-module type TCPV4_DIRECT = V1_LWT.TCPV4
-  with type ipinput = direct_ipv4_input
 
 module Make
     (Time    : V1_LWT.TIME)
     (Random  : V1.RANDOM)
-    (Netif   : V1_LWT.NETWORK)
-    (Ethif   : V1_LWT.ETHIF with type netif = Netif.t)
-    (Arpv4   : V1_LWT.ARP)
-    (Ipv4    : V1_LWT.IPV4 with type ethif = Ethif.t)
-    (Icmpv4  : V1_LWT.ICMPV4)
-    (Udpv4   : UDPV4_DIRECT with type ip = Ipv4.t)
-    (Tcpv4   : TCPV4_DIRECT with type ip = Ipv4.t) =
+    (Ip      : V1_LWT.IP)
+    (Icmp    : V1_LWT.ICMP)
+    (Udp     : V1_LWT.UDP with type ip = Ip.ipaddr)
+    (Tcp     : V1_LWT.TCP with type ip = Ip.ipaddr) =
 struct
 
   type +'a io = 'a Lwt.t
   type ('a,'b) config = ('a,'b) V1_LWT.stack_config
-  type netif = Netif.t
   type mode = V1_LWT.direct_stack_config
-  type id = (netif, mode) config
   type buffer = Cstruct.t
-  type tcp = Tcpv4.t
-  type udp = Udpv4.t
-  type ipaddr = Ipaddr.V4.t
-
-  module UDP = Udpv4
-  module TCP = Tcpv4
-  module Dhcp  = Dhcp_clientv4.Make(Time)(Random)(Udpv4)
+  type ipaddr = Ip.ipaddr
 
   type tcp_action = [
     | `Reject
-    | `Accept of (Tcpv4.flow -> unit Lwt.t)
+    | `Accept of (Tcp.flow -> unit Lwt.t)
   ]
+
+  type direct_ip_input = src:Ipaddr.t -> dst:Ipaddr.t -> Cstruct.t -> unit Lwt.t
 
   type tcp_on_flow_arrival_callback = src:(ipaddr * int) -> dst:(ipaddr * int) -> tcp_action Lwt.t
 
   type t = {
-    id    : id;
-    mode  : mode;
-    netif : Netif.t;
-    ethif : Ethif.t;
-    arpv4 : Arpv4.t;
-    ipv4  : Ipv4.t;
-    icmpv4: Icmpv4.t;
-    udp : Udpv4.t;
-    tcp : Tcpv4.t;
-    udp_listeners: (int, Udpv4.callback) Hashtbl.t;
-    tcp_listeners: (int, (Tcpv4.flow -> unit Lwt.t)) Hashtbl.t;
+    ip    : Ip.t;
+    icmp  : Icmp.t;
+    udp   : Udp.t;
+    tcp   : Tcp.t;
+    udp_listeners: (int, Udp.callback) Hashtbl.t;
+    tcp_listeners: (int, (Tcp.flow -> unit Lwt.t)) Hashtbl.t;
     mutable tcp_on_flow_arrival: tcp_on_flow_arrival_callback;
   }
 
@@ -78,22 +57,27 @@ struct
       `Unknown of string
   ]
 
+  let uprinter fmt addr = match Ip.to_uipaddr addr with
+  | Ipaddr.V4 addr -> Ipaddr.V4.pp_hum fmt addr
+  | Ipaddr.V6 addr -> Ipaddr.V6.pp_hum fmt addr
+
   let tcp { tcp; _ } = tcp
   let udp { udp; _ } = udp
 
   let pp_netconfig fmt t =
-    let ips = Ipv4.get_ip t.ipv4 in
-    let netmasks = Ipv4.get_ip_netmasks t.ipv4 in
-    let gateways = Ipv4.get_ip_gateways t.ipv4 in
-    let ip_print_list fmt l = Format.pp_print_list Ipaddr.V4.pp_hum fmt l in
-    Format.fprintf fmt "ips: %a, netmasks %a, gateways %a"
-      ip_print_list ips ip_print_list netmasks ip_print_list gateways
+    let ips = Ip.get_ip t.ip in
+    let netmasks = Ip.get_ip_netmasks t.ip in
+    let gateways = Ip.get_ip_gateways t.ip in
+
+    let ip_print_list fmt l = Format.pp_print_list uprinter fmt l in
+    Format.fprintf fmt "ips: %a, gateways %a"
+      ip_print_list ips ip_print_list gateways
 
   let pp fmt t =
-    Format.fprintf fmt "tcpip direct stack: interface %s, network %a"
-    (Macaddr.to_string (Ethif.mac t.ethif)) pp_netconfig t
+    Format.fprintf fmt "tcpip direct transport: network %a"
+    pp_netconfig t
 
-  let pp_pair fmt (ipaddr, int) = Format.fprintf fmt "%a,%d" Ipaddr.V4.pp_hum ipaddr int
+  let pp_pair fmt (ipaddr, int) = Format.fprintf fmt "%a,%d" Ipaddr.pp_hum ipaddr int
 
   let err_invalid_port p = Printf.sprintf "invalid port number (%d)" p
 
@@ -126,44 +110,6 @@ struct
     | None -> Format.pp_print_string f "None"
     | Some x -> pp f x
 
-  let configure_dhcp t info =
-    Ipv4.set_ip t.ipv4 info.Dhcp.ip_addr
-    >>= fun () ->
-    (match info.Dhcp.netmask with
-     | Some nm -> Ipv4.set_ip_netmask t.ipv4 nm
-     | None    -> Lwt.return_unit)
-    >>= fun () ->
-    Ipv4.set_ip_gateways t.ipv4 info.Dhcp.gateways
-    >|= fun () ->
-    Log.info (fun f -> f "DHCP offer received and bound to %a nm %a gw [%s]"
-      Ipaddr.V4.pp_hum info.Dhcp.ip_addr
-      (pp_opt Ipaddr.V4.pp_hum) info.Dhcp.netmask
-      (String.concat ", " (List.map Ipaddr.V4.to_string info.Dhcp.gateways))
-    )
-
-  let configure t config =
-    match config with
-    | `DHCP -> begin
-        (* TODO: spawn a background thread to reconfigure the interface
-           when future offers are received. *)
-        let dhcp, offers = Dhcp.create (Ethif.mac t.ethif) t.udp in
-        listen_udp t ~port:68 (Dhcp.input dhcp);
-        (* TODO: stop listening to this port when done with DHCP. *)
-        Lwt_stream.get offers >>= function
-        | None -> Log.info (fun f -> f "No DHCP offer received"); Lwt.return ()
-        | Some offer -> configure_dhcp t offer
-      end
-    | `IPv4 (addr, netmask, gateways) ->
-      Log.info (fun f -> f "Manager: Interface to %a nm %a gw [%s]"
-                           Ipaddr.V4.pp_hum addr
-                           Ipaddr.V4.pp_hum netmask
-                           (String.concat ", " (List.map Ipaddr.V4.to_string gateways)));
-      Ipv4.set_ip t.ipv4 addr
-      >>= fun () ->
-      Ipv4.set_ip_netmask t.ipv4 netmask
-      >>= fun () ->
-      Ipv4.set_ip_gateways t.ipv4 gateways
-
   let udp_listeners t ~dst_port =
     try Some (Hashtbl.find t.udp_listeners dst_port)
     with Not_found -> None
@@ -189,7 +135,7 @@ struct
         ~ipv6:(fun _ -> Lwt.return_unit)
         t.ethif)
 
-  let connect ?on_flow_arrival id ethif arpv4 ipv4 icmpv4 udp tcp =
+  let connect ?on_flow_arrival ip icmp udp tcp =
     let { V1_LWT.interface = netif; mode; _ } = id in
     Log.info (fun f -> f "Manager: connect");
     let udp_listeners = Hashtbl.create 7 in
@@ -204,12 +150,10 @@ struct
                     Lwt.return `Reject)
     | Some fn -> fn
     in
-    let t = { id; mode; netif; ethif; arpv4; ipv4; icmpv4; tcp; udp;
+    let t = { ip; icmp; tcp; udp;
               udp_listeners; tcp_listeners; tcp_on_flow_arrival } in
     Log.info (fun f -> f "Manager: configuring");
-    let _ = listen t in
-    configure t t.mode
-    >>= fun () ->
+    Lwt.async (fun () -> listen t);
     (* TODO: this is fine for now, because the DHCP state machine isn't fully
        implemented and its thread will terminate after one successful lease
        transaction.  For a DHCP thread that runs forever, `configure` will need

@@ -34,11 +34,6 @@ module Make
   include V1_LWT.STACK
     with type netif   = Netif.t
      and type mode    = V1_LWT.direct_stack_config
-     and type ipaddr  = Ipaddr.V4.t
-     and type udp   = Udpv4.t
-     and type tcp   = Tcpv4.t
-     and module TCP = Tcpv4
-     and module UDP = Udpv4
   val connect :
     ?on_flow_arrival:tcp_on_flow_arrival_callback ->
     (netif, mode) V1_LWT.stack_config ->

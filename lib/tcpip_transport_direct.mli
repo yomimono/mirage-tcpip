@@ -21,16 +21,13 @@ module Make
     (Udp     : V1_LWT.UDP with type ip = Ip.ipaddr)
     (Tcp     : V1_LWT.TCP with type ip = Ip.ipaddr) : sig
   include V1_LWT.STACK
-    with type netif   = Netif.t
-     and type mode    = V1_LWT.direct_stack_config
+     with type mode   = V1_LWT.direct_stack_config
      and type ipaddr  = Ip.ipaddr
-     and type udp   = Udp.t
-     and type tcp   = Tcp.t
-     and module TCP = Tcp
-     and module UDP = Udp
   val connect :
+    (* TODO: on_flow_arrival would more appropriately be a thing
+     * that already had been passed to Tcp.t; it's not a property
+     * of the whole stack *)
     ?on_flow_arrival:tcp_on_flow_arrival_callback ->
-    (netif, mode) V1_LWT.stack_config ->
     Ip.t -> Icmp.t -> Udp.t -> Tcp.t ->
     [> `Ok of t | `Error of error ] Lwt.t
 end
