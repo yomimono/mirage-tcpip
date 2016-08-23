@@ -1,5 +1,5 @@
 (* OASIS_START *)
-(* DO NOT EDIT (digest: 95776525c7d66901181719c36c2d6f09) *)
+(* DO NOT EDIT (digest: a0f718438ed9a53384d0e7c36658d957) *)
 module OASISGettext = struct
 (* # 22 "src/oasis/OASISGettext.ml" *)
 
@@ -779,7 +779,7 @@ let package_default =
           ("udp", ["lib/udp"], []);
           ("tcp", ["lib/tcp"], []);
           ("dhcpv4", ["lib/dhcp"], []);
-          ("tcpip-stack-direct", ["lib"], []);
+          ("tcpip-direct", ["lib"], []);
           ("icmpv4-socket", ["unix"], []);
           ("udp-socket", ["unix"], []);
           ("tcp-socket", ["unix"], []);

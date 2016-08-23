@@ -109,14 +109,13 @@ Library dhcpv4
   BuildDepends:       logs,io-page,mirage-types,ipaddr,cstruct,cstruct.ppx,lwt,
                       tcpip.udp, duration
 
-Library "tcpip-stack-direct"
+Library "tcpip-direct"
   CompiledObject:     best
   Path:               lib
   Findlibparent:      tcpip
   Findlibname:        stack-direct
-  Modules:            Tcpip_stack_direct
-  BuildDepends:       logs,mirage-types,ipaddr,lwt,
-                      tcpip.dhcpv4
+  Modules:            Tcpip_stack_direct, Tcpip_transport_direct
+  BuildDepends:       logs,mirage-types,ipaddr,lwt,tcpip.dhcpv4
 
 Library "icmpv4-socket"
   CompiledObject:     best
