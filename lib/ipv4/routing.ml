@@ -18,6 +18,8 @@ module Make(Log : Logs.LOG) (A : V1_LWT.ARP) = struct
   let destination_mac network gateway arp = function
     |ip when ip = Ipaddr.V4.broadcast || ip = Ipaddr.V4.any -> (* Broadcast *)
       Lwt.return Macaddr.broadcast
+    | _ when Ipaddr.V4.Prefix.bits network = 32 -> (* PPP link *)
+      Lwt.return Macaddr.broadcast
     |ip when Ipaddr.V4.is_multicast ip ->
       Lwt.return (mac_of_multicast ip)
     |ip when Ipaddr.V4.Prefix.mem ip network -> (* Local *)
