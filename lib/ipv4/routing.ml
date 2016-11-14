@@ -34,6 +34,9 @@ module Make(Log : Logs.LOG) (A : V1_LWT.ARP) = struct
       | None ->
           Log.info (fun f -> f "IP.output: no route to %a (no default gateway is configured)" Ipaddr.V4.pp_hum ip);
           Lwt.fail (No_route_to_destination_address ip)
+      (* Note that we don't check whether the gateway is on the segment.  This is intentional;
+       * some networks will give us a configuration where our netmask is /32 , but we still have
+       * a valid route to the outside world. *)
       | Some gateway ->
         A.query arp gateway >>= function
           | `Ok mac -> Lwt.return mac
