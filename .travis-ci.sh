@@ -8,7 +8,7 @@ bash -ex .travis-opam.sh
 export OPAMYES=1
 eval `opam config env`
 
-git clone -b mirage-dev git://github.com/mirage/mirage-www
+git clone -b update-config git://github.com/yomimono/mirage-www
 cd mirage-www
 
 opam install mirage
