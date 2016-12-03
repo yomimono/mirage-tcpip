@@ -10,6 +10,7 @@ eval `opam config env`
 
 git clone -b update-config git://github.com/yomimono/mirage-www
 cd mirage-www
+git log --oneline |head -5
 
 opam install mirage
 make MODE=$MIRAGE_MODE configure
