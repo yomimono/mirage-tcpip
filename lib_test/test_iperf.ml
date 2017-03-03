@@ -111,13 +111,13 @@ module Test_iperf (B : Vnetif_backends.Backend) = struct
     Lwt.return_unit
 
   let print_data st ts_now =
-    let server = Int64.sub ts_now st.start_time in
-    let rate =
-      Int64.(div (div st.bin_bytes (sub ts_now st.last_time))) 125L
-    in
     let live_words = Gc.((stat()).live_words) in
-    Logs.debug (fun f -> f  "Iperf server: t = %.0Lu, rate = %.0Lu KBits/ns, totbytes = %Ld, \
-                             live_words = %d" server rate st.bytes live_words);
+    let uptime = Int64.sub ts_now st.start_time in
+    let uptime_ms = Duration.to_ms uptime |> Int64.of_int in
+    let rate_ms = Int64.div st.bin_bytes uptime_ms in
+    let rate_kb_per_sec = Int64.(div (mul rate_ms 1_000L) 1024L) in
+    Logs.info (fun f -> f  "Iperf server: uptime = %.0Lu ms, rate = %.0Lu bytes/msec (%.0Lu kilobytes/sec), totbytes = %Ld, \
+                             live_words = %d" uptime_ms rate_ms rate_kb_per_sec st.bytes live_words);
     st.last_time <- ts_now;
     st.bin_bytes <- 0L;
     st.bin_packets <- 0L;
