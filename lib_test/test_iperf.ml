@@ -151,7 +151,7 @@ module Test_iperf (B : Vnetif_backends.Backend) = struct
           st.bin_bytes <- (Int64.add st.bin_bytes (Int64.of_int l));
           st.bin_packets <- (Int64.add st.bin_packets 1L);
           let ts_now = Clock.elapsed_ns clock in
-          (if (Int64.sub ts_now st.last_time >= 1L) then
+          (if (Int64.sub ts_now st.last_time >= (Duration.of_sec 1)) then
              print_data st ts_now
            else
              Lwt.return_unit) >>= fun () ->
