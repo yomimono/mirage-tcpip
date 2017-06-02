@@ -20,12 +20,12 @@ open Result
 
 type t =
   | Noop
-  | MSS of int                    (* RFC793 *)
-  | Window_size_shift of int      (* RFC1323 2.2 *)
-  | SACK_ok                       (* RFC2018 *)
-  | SACK of (int32 * int32) list  (* RFC2018 *)
-  | Timestamp of int32 * int32    (* RFC1323 3.2 *)
-  | Unknown of int * string       (* RFC793 *)
+  | MSS of Cstruct.uint16              (* RFC793 *)
+  | Window_size_shift of Cstruct.uint8 (* RFC7323 2.2 *)
+  | SACK_ok                            (* RFC2018 *)
+  | SACK of (int32 * int32) list       (* RFC2018 *)
+  | Timestamp of int32 * int32         (* RFC1323 3.2 *)
+  | Unknown of Cstruct.uint8 * string  (* RFC793 *)
 
 let equal x y = match x, y with
   | Noop, Noop -> true
