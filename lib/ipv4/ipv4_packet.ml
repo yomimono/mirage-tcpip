@@ -48,7 +48,7 @@ module Marshal = struct
       | 0 -> n
       | k -> (4 - k) + n
     in
-    let options_len = nearest_4 @@ Cstruct.len t.options in
+    let options_len = Cstruct.len t.options |> nearest_4 |> min 40 in
     set_ipv4_hlen_version buf ((4 lsl 4) + 5 + (options_len / 4));
     set_ipv4_ttl buf t.ttl;
     set_ipv4_proto buf t.proto;
@@ -72,7 +72,7 @@ module Marshal = struct
       | 0 -> n
       | k -> (4 - k) + n
     in
-    let options_len = nearest_4 @@ Cstruct.len t.options in
+    let options_len = Cstruct.len t.options |> nearest_4 |> min 40 in
     let buf = Cstruct.create (sizeof_ipv4 + options_len) in
     Cstruct.memset buf 0x00; (* should be removable in the future *)
     unsafe_fill ~payload_len t buf;

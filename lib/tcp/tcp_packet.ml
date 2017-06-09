@@ -21,6 +21,7 @@ let equal {urg; ack; psh; rst; syn; fin; window; options; sequence; ack_number;
   urg = q.urg && ack = q.ack && psh = q.psh && rst = q.rst && syn = q.syn && fin = q.fin &&
   Sequence.compare sequence q.sequence = 0 &&
   Sequence.compare ack_number q.ack_number = 0 &&
+  List.length options = List.length q.options &&
   List.for_all2 Options.equal options q.options
 
 let pp fmt t =

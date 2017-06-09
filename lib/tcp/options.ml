@@ -22,8 +22,8 @@ type t =
   | Noop
   | MSS of Cstruct.uint16              (* RFC793 *)
   | Window_size_shift of Cstruct.uint8 (* RFC7323 2.2 *)
-  | SACK_ok                            (* RFC2018 *)
-  | SACK of (int32 * int32) list       (* RFC2018 *)
+  | SACK_ok                                (* RFC2018 *)
+  | SACK of (Sequence.t * Sequence.t) list (* RFC2018 *)
   | Timestamp of int32 * int32         (* RFC1323 3.2 *)
   | Unknown of Cstruct.uint8 * string  (* RFC793 *)
 
@@ -33,7 +33,11 @@ let equal x y = match x, y with
   | Window_size_shift x, Window_size_shift y -> x = y
   | SACK_ok, SACK_ok -> true
   | Timestamp (a, b), Timestamp (x, y) -> a = x && b = y
-  | SACK l1, SACK l2 -> List.for_all2 (fun x y -> x = y) l1 l2
+  | SACK l1, SACK l2 when List.length l1 = List.length l2 ->
+      List.for_all2 (fun x y ->
+        Sequence.compare (fst x) (fst y) = 0 &&
+        Sequence.compare (snd x) (snd y) = 0)
+      l1 l2
   | Unknown (a, s1), Unknown (b, s2) -> a = b && String.equal s1 s2
   | _, _ -> false
 
@@ -84,15 +88,15 @@ let unmarshal buf =
              | 4, 2 -> Ok SACK_ok
              | 5, _ ->
                let num = (option_length - 2) / 8 in
-               let rec to_int32_list off acc = function
+               let rec to_sequence_list off acc = function
                  |0 -> acc
                  |n ->
                    let x =
-                     Cstruct.BE.get_uint32 buf off,
-                     Cstruct.BE.get_uint32 buf (off+4)
+                     Cstruct.BE.get_uint32 buf off |> Sequence.of_int32,
+                     Cstruct.BE.get_uint32 buf (off+4) |> Sequence.of_int32
                    in
-                   to_int32_list (off+8) (x::acc) (n-1)
-               in Ok (SACK (to_int32_list 2 [] num))
+                   to_sequence_list (off+8) (x::acc) (n-1)
+               in Ok (SACK (List.rev @@ to_sequence_list 2 [] num))
              | 8, 10 -> Ok  (Timestamp (Cstruct.BE.get_uint32 buf 2,
                                         Cstruct.BE.get_uint32 buf 6))
              (* error out for lengths that don't match the spec's
@@ -155,8 +159,8 @@ let write_iter buf =
     set_tlen 5 tlen;
     let rec fn off = function
       | (le,re)::tl ->
-        Cstruct.BE.set_uint32 buf off le;
-        Cstruct.BE.set_uint32 buf (off+4) re;
+        Sequence.to_int32 le |> Cstruct.BE.set_uint32 buf off;
+        Sequence.to_int32 re |> Cstruct.BE.set_uint32 buf (off+4);
         fn (off+8) tl
       | [] -> () in
     fn 2 acks;
@@ -177,11 +181,16 @@ let marshal buf ts =
   (* Apply the write iterator on each stamp *)
   let rec write fn off buf =
     function
-    | hd::tl ->
-      let wlen = fn buf hd in
-      let buf = Cstruct.shift buf wlen in
-      write fn (off+wlen) buf tl
     | [] -> off
+    | hd::tl ->
+      try
+        let wlen = fn buf hd in
+        let buf = Cstruct.shift buf wlen in
+        write fn (off+wlen) buf tl
+      with
+      (* even if there wasn't enough space to write this option,
+       * there may be a smaller option later in the list that will fit *)
+        Invalid_argument _ -> off
   in
   let tlen = write write_iter 0 buf ts in
   (* add padding to word length *)
@@ -204,7 +213,7 @@ let marshal buf ts =
 let pf = Format.fprintf
 
 let pp_sack fmt x =
-  let pp_v fmt (l, r) = pf fmt "[%lu,%lu]" l r in
+  let pp_v fmt (l, r) = pf fmt "[%a,%a]" Sequence.pp l Sequence.pp r in
   Format.pp_print_list pp_v fmt x
 
 let pp fmt = function
@@ -214,6 +223,6 @@ let pp fmt = function
   | SACK_ok             -> pf fmt "SACK_ok"
   | SACK x              -> pf fmt "SACK[%a]" pp_sack x
   | Timestamp (a,b)     -> pf fmt "Timestamp(%lu,%lu)" a b
-  | Unknown (t,_)       -> pf fmt "%d?" t
+  | Unknown (t,s)       -> pf fmt "unknown %d[%S]" t s
 
 let pps = Fmt.Dump.list pp
