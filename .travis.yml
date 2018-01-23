@@ -3,8 +3,4 @@ script: bash -ex .travis-ci.sh
 sudo: required
 env:
   global:
-  - FORK_USER=yomimono FORK_BRANCH=deprecate-latest
-  matrix:
-  - OCAML_VERSION=latest PACKAGE=tcpip MIRAGE_MODE=unix
-  - PACKAGE=tcpip MIRAGE_MODE=unix
-  - OCAML_VERSION=4.04 PACKAGE=tcpip MIRAGE_MODE=unix
+  - FORK_USER=yomimono FORK_BRANCH=deprecate-latest OCAML_VERSION=4.05 MIRAGE_MODE=unix PACKAGE=tcpip
