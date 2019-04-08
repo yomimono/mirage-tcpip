@@ -3,6 +3,7 @@
  (public_name tcpip)
  (modules tcpip_checksum)
  (libraries cstruct tcpip.unix)
+ (preprocess (pps bisect_ppx -conditional -no-comment-parsing))
  (wrapped false))
 
 (library
@@ -33,5 +34,6 @@
  (name tcpip_unix)
  (public_name tcpip.unix)
  (modules tcpip_unix)
+ (preprocess (pps bisect_ppx -conditional -no-comment-parsing))
  (c_names checksum_stubs)
  (wrapped false))

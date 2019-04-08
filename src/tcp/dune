@@ -5,4 +5,4 @@
    mirage-profile tcpip duration randomconv fmt mirage-time-lwt
    mirage-clock mirage-random)
  (preprocess
-  (pps ppx_cstruct)))
+  (pps ppx_cstruct bisect_ppx -conditional -no-comment-parsing)))

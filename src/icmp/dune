@@ -3,5 +3,6 @@
  (public_name tcpip.icmpv4)
  (libraries mirage-protocols-lwt rresult logs tcpip mirage-profile tcpip.udp)
  (preprocess
-  (pps ppx_cstruct))
+  (pps ppx_cstruct bisect_ppx -conditional -no-comment-parsing)
+  )
  (wrapped false))

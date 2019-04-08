@@ -4,5 +4,5 @@
  (libraries logs mirage-protocols-lwt ipaddr cstruct rresult tcpip
    tcpip.udp mirage-random mirage-clock randomconv lru)
  (preprocess
-  (pps ppx_cstruct))
+  (pps ppx_cstruct bisect_ppx -conditional -no-comment-parsing))
  (wrapped false))

@@ -3,5 +3,5 @@
  (public_name tcpip.udp)
  (libraries mirage-protocols-lwt mirage-random rresult logs tcpip randomconv)
  (preprocess
-  (pps ppx_cstruct))
+  (pps ppx_cstruct bisect_ppx -conditional -no-comment-parsing))
  (wrapped false))
